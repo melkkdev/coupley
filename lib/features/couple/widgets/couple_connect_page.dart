@@ -167,24 +167,28 @@ class _NotConnectedView extends ConsumerWidget {
               final code = controller.text.trim();
               if (code.isEmpty) return;
 
+              // await 전에 messenger 미리 확보 (dialog context 기준)
+              final messenger = ScaffoldMessenger.of(dialogContext);
+              final navigator = Navigator.of(dialogContext);
+
               try {
                 await ref
                     .read(coupleNotifierProvider.notifier)
                     .joinByCode(code);
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('커플 연결 완료! 💑')));
-                }
+
+                // 다이얼로그 먼저 닫기
+                navigator.pop();
+
+                // 미리 확보한 messenger로 스낵바 (전환된 화면 context 안 씀)
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('커플 연결 완료! 💑')),
+                );
               } catch (e) {
-                if (dialogContext.mounted) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(e.toString().replaceAll('Exception: ', '')),
-                    ),
-                  );
-                }
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString().replaceAll('Exception: ', '')),
+                  ),
+                );
               }
             },
             child: const Text('연결하기'),
@@ -304,96 +308,104 @@ class _ConnectedView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.favorite, size: 80, color: Colors.pink),
-            AppSpacing.gapLg,
-            const Text(
-              '커플 연결 완료! 💑',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            AppSpacing.gapSm,
-            Text(
-              '이제 일정을 함께 공유할 수 있어요',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-            ),
-            AppSpacing.gapXl,
-            Text(
-              '연결된 멤버: ${couple.members.length}명',
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            AppSpacing.gapXxl,
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight:
+              MediaQuery.of(context).size.height -
+              MediaQuery.of(context).padding.top -
+              kToolbarHeight,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.favorite, size: 80, color: Colors.pink),
+              AppSpacing.gapLg,
+              const Text(
+                '커플 연결 완료! 💑',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              AppSpacing.gapSm,
+              Text(
+                '이제 일정을 함께 공유할 수 있어요',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              ),
+              AppSpacing.gapXl,
+              Text(
+                '연결된 멤버: ${couple.members.length}명',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+              AppSpacing.gapXxl,
 
-            // 확인 버튼 (캘린더로 돌아가기)
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // 캘린더로 돌아감
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              // 확인 버튼 (캘린더로 돌아가기)
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // 캘린더로 돌아감
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  '캘린더로 가기',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  child: const Text(
+                    '캘린더로 가기',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-            ),
-            AppSpacing.gapMd,
+              AppSpacing.gapMd,
 
-            // 연결 해제 버튼
-            TextButton(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    title: const Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('연결 해제'),
+              // 연결 해제 버튼
+              TextButton(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('연결 해제'),
+                        ],
+                      ),
+                      content: const Text(
+                        '정말 커플 연결을 해제하시겠습니까?\n\n'
+                        '⚠️ 함께 공유한 모든 커플 일정이 삭제되며,\n'
+                        '이 작업은 되돌릴 수 없습니다.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('취소'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, true),
+                          child: const Text(
+                            '해제하기',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
                       ],
                     ),
-                    content: const Text(
-                      '정말 커플 연결을 해제하시겠습니까?\n\n'
-                      '⚠️ 함께 공유한 모든 커플 일정이 삭제되며,\n'
-                      '이 작업은 되돌릴 수 없습니다.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        child: const Text('취소'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, true),
-                        child: const Text(
-                          '해제하기',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                  );
 
-                if (confirmed == true) {
-                  await ref
-                      .read(coupleNotifierProvider.notifier)
-                      .disconnect(couple);
-                }
-              },
-              child: const Text('연결 해제', style: TextStyle(color: Colors.red)),
-            ),
-          ],
+                  if (confirmed == true) {
+                    await ref
+                        .read(coupleNotifierProvider.notifier)
+                        .disconnect(couple);
+                  }
+                },
+                child: const Text('연결 해제', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
         ),
       ),
     );

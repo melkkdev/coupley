@@ -112,20 +112,25 @@ class CoupleService {
   /// 2. 내 coupleId 제거
   /// 3. couples 문서 삭제
   Future<void> disconnect(String coupleId, String myUserId) async {
-    // 1. 커플 공유 일정 모두 삭제 (연결 해제 전에 해야 권한 있음)
-    final coupleEvents = await _eventsRef
-        .where('coupleId', isEqualTo: coupleId)
-        .get();
+    // couples 문서가 이미 삭제됐는지 확인
+    final coupleDoc = await _couplesRef.doc(coupleId).get();
 
-    for (final doc in coupleEvents.docs) {
-      await doc.reference.delete();
+    if (coupleDoc.exists) {
+      // 1. 커플 일정 삭제 (아직 있을 때만)
+      final coupleEvents = await _eventsRef
+          .where('coupleId', isEqualTo: coupleId)
+          .get();
+
+      for (final doc in coupleEvents.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. couples 문서 삭제
+      await _couplesRef.doc(coupleId).delete();
     }
 
-    // 2. 내 coupleId 제거
+    // 3. 내 coupleId는 항상 정리 (이미 null이어도 무해)
     await _usersRef.doc(myUserId).update({'coupleId': null});
-
-    // 3. couples 문서 삭제 → 상대도 연결 해제 감지
-    await _couplesRef.doc(coupleId).delete();
   }
 
   /// 내 coupleId 정리 (상대가 해제했을 때 자동 호출용)

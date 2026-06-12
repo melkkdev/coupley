@@ -1,5 +1,6 @@
 import 'package:coupley/features/calendar/widgets/calendar_view.dart';
 import 'package:coupley/features/calendar/widgets/greeting_header.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -143,7 +144,7 @@ class CalendarHome extends ConsumerWidget {
               ),
             ),
           ),
-          const DebugFloatingButton(),
+          if (kDebugMode) const DebugFloatingButton(),
         ],
       ),
       floatingActionButton: FloatingActionButton(

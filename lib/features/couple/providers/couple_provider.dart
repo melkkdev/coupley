@@ -24,12 +24,19 @@ final coupleProvider = StreamProvider.autoDispose<Couple?>((ref) {
   }
 
   return coupleService.getCoupleStream(coupleId).map((couple) {
-    // coupleId는 있는데 couples 문서가 없음 = 상대가 연결 해제함
+    // couples 문서가 없어졌으면 (상대가 해제) 자동 정리
     if (couple == null) {
-      final authState = ref.read(authProvider);
-      if (authState.userId != null) {
-        coupleService.clearMyCoupleId(authState.userId!);
-      }
+      // microtask로 미뤄서 dispose 타이밍 충돌 방지
+      Future.microtask(() {
+        try {
+          final userId = ref.read(authProvider).userId;
+          if (userId != null) {
+            coupleService.clearMyCoupleId(userId);
+          }
+        } catch (_) {
+          // provider가 이미 dispose된 경우 무시
+        }
+      });
     }
     return couple;
   });
@@ -99,6 +106,9 @@ class CoupleNotifier extends StateNotifier<AsyncValue<Couple?>> {
 
   /// 커플 연결 해제
   Future<void> disconnect(Couple couple) async {
+    // 이미 로딩 중이면 무시 (중복 호출 방지)
+    if (state.isLoading) return;
+
     state = const AsyncValue.loading();
     try {
       final coupleService = ref.read(coupleServiceProvider);
@@ -112,7 +122,7 @@ class CoupleNotifier extends StateNotifier<AsyncValue<Couple?>> {
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      rethrow;
+      // rethrow 제거 - 에러를 조용히 처리 (이미 해제된 경우 등)
     }
   }
 }
