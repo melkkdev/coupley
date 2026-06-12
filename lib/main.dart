@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'app/app.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Firebase 초기화
   await Firebase.initializeApp();
+
+  // Firestore 오프라인 지속성 활성화
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
 
   runApp(const ProviderScope(child: AppInitializer()));
 }
@@ -74,7 +81,7 @@ class SplashScreen extends StatelessWidget {
               Icon(Icons.calendar_month, size: 100, color: Colors.purple),
               SizedBox(height: 24),
               Text(
-                '커플 캘린더',
+                'Coupley',
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,

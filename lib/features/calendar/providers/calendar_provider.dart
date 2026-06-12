@@ -178,7 +178,9 @@ class CalendarNotifier extends StateNotifier<AsyncValue<void>> {
         updatedAt: now,
       );
 
-      await firebaseService.addEvent(fbEvent);
+      firebaseService.addEvent(fbEvent).catchError((e) {
+        print('이벤트 업로드 실패 (백그라운드): $e');
+      });
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -232,7 +234,11 @@ class CalendarNotifier extends StateNotifier<AsyncValue<void>> {
         updatedAt: DateTime.now(),
       );
 
-      await firebaseService.updateEvent(existing.firebaseId!, fbEvent);
+      firebaseService.updateEvent(existing.firebaseId!, fbEvent).catchError((
+        e,
+      ) {
+        print('이벤트 수정 실패 (백그라운드): $e');
+      });
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -251,7 +257,9 @@ class CalendarNotifier extends StateNotifier<AsyncValue<void>> {
 
       if (event?.firebaseId != null) {
         // Firebase에서 삭제 → 리스너가 Drift에서도 삭제
-        await firebaseService.deleteEvent(event!.firebaseId!);
+        firebaseService.deleteEvent(event!.firebaseId!).catchError((e) {
+          print('이벤트 삭제 실패 (백그라운드): $e');
+        });
       } else {
         // 아직 업로드 안 된 로컬 전용 → Drift에서 직접 삭제
         await database.deleteEvent(eventId);
