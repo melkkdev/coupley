@@ -1,4 +1,5 @@
 import 'package:coupley/features/calendar/widgets/calendar_view.dart';
+import 'package:coupley/features/calendar/widgets/greeting_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +10,7 @@ import '../../auth/providers/auth_provider.dart';
 import 'add_event_dialog.dart';
 import '../providers/calendar_provider.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/user_provider.dart';
 
 import 'event_card.dart';
 
@@ -22,7 +24,6 @@ class CalendarHome extends ConsumerWidget {
     ref.watch(realtimeCoupleSyncProvider);
     ref.watch(realtimePersonalSyncProvider);
 
-    final authState = ref.watch(authProvider);
     final selectedDate = ref.watch(selectedDateProvider);
     final selectedDayEventsAsync = ref.watch(selectedDayEventsProvider);
 
@@ -46,25 +47,7 @@ class CalendarHome extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '안녕하세요 👋',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            Text(
-                              authState.userName ?? '사용자',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                        GreetingHeader(),
                         Row(
                           children: [
                             IconButton(
@@ -210,6 +193,75 @@ class CalendarHome extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('닫기'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditNameDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String currentName,
+  ) {
+    final controller = TextEditingController(text: currentName);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('닉네임 변경'),
+        content: TextField(
+          controller: controller,
+          maxLength: 20,
+          decoration: const InputDecoration(
+            hintText: '새 닉네임',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isEmpty) {
+                ScaffoldMessenger.of(
+                  dialogContext,
+                ).showSnackBar(const SnackBar(content: Text('닉네임을 입력해주세요')));
+                return;
+              }
+
+              final authState = ref.read(authProvider);
+              if (authState.userId == null) return;
+
+              try {
+                // 1. Firebase Auth displayName 업데이트
+                await ref
+                    .read(authProvider.notifier)
+                    .updateDisplayName(newName);
+
+                // 2. users 컬렉션 업데이트
+                await ref
+                    .read(userServiceProvider)
+                    .updateUserName(authState.userId!, newName);
+
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('닉네임이 변경되었습니다')));
+                }
+              } catch (e) {
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(
+                    dialogContext,
+                  ).showSnackBar(SnackBar(content: Text('변경 실패: $e')));
+                }
+              }
+            },
+            child: const Text('변경'),
           ),
         ],
       ),

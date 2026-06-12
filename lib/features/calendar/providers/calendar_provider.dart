@@ -31,11 +31,11 @@ final selectedDayEventsProvider = StreamProvider.autoDispose<List<Event>>((
   ref,
 ) {
   final database = ref.watch(databaseProvider);
-  final authState = ref.watch(authProvider);
+  final userId = ref.watch(authProvider.select((s) => s.userId));
   final selectedDate = ref.watch(selectedDateProvider);
   final coupleAsync = ref.watch(coupleProvider);
 
-  if (!authState.isAuthenticated || authState.userId == null) {
+  if (userId == null) {
     return Stream.value([]);
   }
 
@@ -55,30 +55,26 @@ final selectedDayEventsProvider = StreamProvider.autoDispose<List<Event>>((
 
   final couple = coupleAsync.valueOrNull;
   if (couple != null && couple.isConnected) {
-    // 커플: 내 개인 일정 + 커플 일정 합쳐서
     return database.watchEventsByDateRangeCombined(
-      authState.userId!,
+      userId,
       couple.id,
       startOfDay,
       endOfDay,
     );
   } else {
-    return database.watchEventsByDateRange(
-      authState.userId!,
-      startOfDay,
-      endOfDay,
-    );
+    return database.watchEventsByDateRange(userId, startOfDay, endOfDay);
   }
 });
 
 /// 현재 월의 모든 이벤트 Provider (커플/솔로 자동 분기)
 final monthEventsProvider = StreamProvider.autoDispose<List<Event>>((ref) {
   final database = ref.watch(databaseProvider);
-  final authState = ref.watch(authProvider);
+  // userId만 select (userName 변경 시 재평가 방지)
+  final userId = ref.watch(authProvider.select((s) => s.userId));
   final focusedDate = ref.watch(focusedDateProvider);
   final coupleAsync = ref.watch(coupleProvider);
 
-  if (!authState.isAuthenticated || authState.userId == null) {
+  if (userId == null) {
     return Stream.value([]);
   }
 
@@ -95,17 +91,13 @@ final monthEventsProvider = StreamProvider.autoDispose<List<Event>>((ref) {
   final couple = coupleAsync.valueOrNull;
   if (couple != null && couple.isConnected) {
     return database.watchEventsByDateRangeCombined(
-      authState.userId!,
+      userId,
       couple.id,
       startOfMonth,
       endOfMonth,
     );
   } else {
-    return database.watchEventsByDateRange(
-      authState.userId!,
-      startOfMonth,
-      endOfMonth,
-    );
+    return database.watchEventsByDateRange(userId, startOfMonth, endOfMonth);
   }
 });
 

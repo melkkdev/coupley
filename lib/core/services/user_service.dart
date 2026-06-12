@@ -77,6 +77,14 @@ class UserService {
     });
   }
 
+  /// 닉네임(userName) 변경
+  Future<void> updateUserName(String userId, String newName) async {
+    await _usersRef.doc(userId).update({
+      'userName': newName,
+      'updatedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
   // TODO: Phase 4 - 전화번호로 유저 찾기
   // Future<UserProfile?> findUserByPhone(String phoneNumber) async {
   //   final snapshot = await _usersRef

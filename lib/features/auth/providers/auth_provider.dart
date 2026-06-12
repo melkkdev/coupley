@@ -4,6 +4,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'dart:io';
 
+import '../../../core/common/nickname_generator.dart';
+
 /// 사용자 인증 상태
 class AuthState {
   final bool isAuthenticated;
@@ -33,6 +35,21 @@ class AuthState {
       userName = user.displayName,
       email = user.email,
       photoUrl = user.photoURL;
+  AuthState copyWith({
+    bool? isAuthenticated,
+    String? userId,
+    String? userName,
+    String? email,
+    String? photoUrl,
+  }) {
+    return AuthState(
+      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      email: email ?? this.email,
+      photoUrl: photoUrl ?? this.photoUrl,
+    );
+  }
 }
 
 /// Auth 상태를 관리하는 Notifier
@@ -79,12 +96,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// 이메일/비밀번호 회원가입
   Future<void> signUpWithEmail(String email, String password) async {
     try {
-      await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // 랜덤 닉네임 자동 생성 후 설정
+      final nickname = NicknameGenerator.generate();
+      await credential.user?.updateDisplayName(nickname);
+      await credential.user?.reload();
     } on FirebaseAuthException catch (e) {
-      // 에러 메시지 한글화
       throw _handleAuthError(e);
     } catch (e) {
       print('SignUp Error: $e');
@@ -151,6 +172,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       print('Apple Sign In Error: $e');
       rethrow;
     }
+  }
+
+  /// displayName(닉네임) 변경
+  Future<void> updateDisplayName(String newName) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await user.updateDisplayName(newName);
+    // await user.reload();
+    state = state.copyWith(userName: newName);
+    // 갱신된 user로 상태 재생성
+    // final updated = _auth.currentUser;
+    // if (updated != null) {
+    //   state = AuthState.authenticated(user: updated);
+    // }
   }
 
   /// 로그아웃

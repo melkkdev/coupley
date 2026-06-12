@@ -14,10 +14,12 @@ final coupleServiceProvider = Provider<CoupleService>((ref) {
 /// userProfile의 coupleId를 보고, 연결된 커플 정보를 실시간으로 가져옴
 final coupleProvider = StreamProvider.autoDispose<Couple?>((ref) {
   final coupleService = ref.watch(coupleServiceProvider);
-  final userProfileAsync = ref.watch(userProfileProvider);
 
-  // 유저 프로필에서 coupleId 확인
-  final coupleId = userProfileAsync.valueOrNull?.coupleId;
+  // userProfile 전체가 아니라 coupleId만 select
+  // (닉네임 등 다른 필드 변경 시 불필요한 재평가 방지)
+  final coupleId = ref.watch(
+    userProfileProvider.select((async) => async.valueOrNull?.coupleId),
+  );
 
   if (coupleId == null) {
     return Stream.value(null); // 아직 커플 연결 안 됨
