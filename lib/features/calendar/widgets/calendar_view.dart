@@ -11,11 +11,11 @@ class CalendarView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedDate = ref.watch(selectedDateProvider);
-    final focusedDate = ref.watch(focusedDateProvider);
+    // monthEvents만 watch (달력 데이터)
     final monthEventsAsync = ref.watch(monthEventsProvider);
 
     return monthEventsAsync.when(
+      skipLoadingOnReload: true,
       data: (events) {
         final eventsMap = getEventsMap(events);
 
@@ -32,87 +32,94 @@ class CalendarView extends ConsumerWidget {
               ),
             ],
           ),
-          child: TableCalendar(
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: focusedDate,
-            selectedDayPredicate: (day) {
-              return isSameDay(selectedDate, day);
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              ref.read(selectedDateProvider.notifier).state = selectedDay;
-              ref.read(focusedDateProvider.notifier).state = focusedDay;
-            },
-            onPageChanged: (focusedDay) {
-              ref.read(focusedDateProvider.notifier).state = focusedDay;
-            },
-            calendarFormat: CalendarFormat.month,
-            eventLoader: (day) {
-              final normalizedDay = DateTime(day.year, day.month, day.day);
-              return eventsMap[normalizedDay] ?? [];
-            },
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: Colors.purple.shade200,
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: const BoxDecoration(
-                color: Colors.purple,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: const BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-            ),
-            headerStyle: const HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
-              titleTextStyle: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            // 마커 커스텀: 개인/커플 색 구분
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, day, eventList) {
-                if (eventList.isEmpty) return null;
+          // 선택 날짜 표시는 Consumer로 분리 (이 부분만 selectedDate watch)
+          child: Consumer(
+            builder: (context, ref, _) {
+              final selectedDate = ref.watch(selectedDateProvider);
+              final focusedDate = ref.watch(focusedDateProvider);
 
-                // 이 날의 이벤트들을 Event로 캐스팅
-                final events = eventList.cast<Event>();
-                final hasCouple = events.any((e) => e.coupleId != null);
-                final hasPersonal = events.any((e) => e.coupleId == null);
+              return TableCalendar(
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: focusedDate,
+                selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+                onDaySelected: (selectedDay, focusedDay) {
+                  ref.read(selectedDateProvider.notifier).state = selectedDay;
+                  ref.read(focusedDateProvider.notifier).state = focusedDay;
+                },
+                onPageChanged: (focusedDay) {
+                  ref.read(focusedDateProvider.notifier).state = focusedDay;
+                },
+                calendarFormat: CalendarFormat.month,
+                rowHeight: 52, // 행 높이 고정 (마커 공간 포함)
 
-                return Positioned(
-                  bottom: 4,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasPersonal)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      if (hasCouple)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: const BoxDecoration(
-                            color: Colors.pink,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                    ],
+                eventLoader: (day) {
+                  final normalizedDay = DateTime(day.year, day.month, day.day);
+                  return eventsMap[normalizedDay] ?? [];
+                },
+                calendarStyle: CalendarStyle(
+                  // 행 높이 고정 (마커 유무와 무관하게 일정)
+                  cellMargin: const EdgeInsets.all(6),
+                  todayDecoration: BoxDecoration(
+                    color: Colors.purple.shade200,
+                    shape: BoxShape.circle,
                   ),
-                );
-              },
-            ),
+                  selectedDecoration: const BoxDecoration(
+                    color: Colors.purple,
+                    shape: BoxShape.circle,
+                  ),
+                  markerDecoration: const BoxDecoration(
+                    color: Colors.blue,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                headerStyle: const HeaderStyle(
+                  formatButtonVisible: false,
+                  titleCentered: true,
+                  titleTextStyle: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  markerBuilder: (context, day, eventList) {
+                    if (eventList.isEmpty) return null;
+                    final events = eventList.cast<Event>();
+                    final hasCouple = events.any((e) => e.coupleId != null);
+                    final hasPersonal = events.any((e) => e.coupleId == null);
+
+                    return Positioned(
+                      bottom: 6,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasPersonal)
+                            Container(
+                              width: 6,
+                              height: 6,
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              decoration: const BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          if (hasCouple)
+                            Container(
+                              width: 6,
+                              height: 6,
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              decoration: const BoxDecoration(
+                                color: Colors.pink,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           ),
         );
       },

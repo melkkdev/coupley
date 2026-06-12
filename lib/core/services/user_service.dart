@@ -85,6 +85,21 @@ class UserService {
     });
   }
 
+  /// 여러 userId의 이름을 한 번에 조회 (작성자 표시용)
+  Future<Map<String, String>> getUserNames(List<String> userIds) async {
+    if (userIds.isEmpty) return {};
+
+    final Map<String, String> result = {};
+    for (final userId in userIds) {
+      final doc = await _usersRef.doc(userId).get();
+      if (doc.exists) {
+        final data = doc.data();
+        result[userId] = data?['userName'] as String? ?? '알 수 없음';
+      }
+    }
+    return result;
+  }
+
   // TODO: Phase 4 - 전화번호로 유저 찾기
   // Future<UserProfile?> findUserByPhone(String phoneNumber) async {
   //   final snapshot = await _usersRef

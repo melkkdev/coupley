@@ -28,6 +28,19 @@ final coupleProvider = StreamProvider.autoDispose<Couple?>((ref) {
   return coupleService.getCoupleStream(coupleId);
 });
 
+/// 커플 멤버들의 이름 맵 Provider { userId: userName }
+final coupleMemberNamesProvider =
+    FutureProvider.autoDispose<Map<String, String>>((ref) async {
+      final couple = ref.watch(coupleProvider).valueOrNull;
+
+      if (couple == null || !couple.isConnected) {
+        return {};
+      }
+
+      final userService = ref.watch(userServiceProvider);
+      return userService.getUserNames(couple.members);
+    });
+
 /// 커플 연결 액션 (초대 코드 생성/합류/해제)
 class CoupleNotifier extends StateNotifier<AsyncValue<Couple?>> {
   CoupleNotifier(this.ref) : super(const AsyncValue.data(null));

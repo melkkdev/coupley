@@ -5,6 +5,8 @@ import '../../../core/common/spacing.dart';
 import '../../../core/database/drift_database.dart';
 import '../providers/calendar_provider.dart';
 import 'add_event_dialog.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../couple/providers/couple_provider.dart';
 
 /// 이벤트 카드 (개별 이벤트 표시)
 /// 탭하면 수정, 삭제 버튼으로 삭제
@@ -15,7 +17,6 @@ class EventCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color = Color(int.parse(event.color.substring(1), radix: 16));
     final isCouple = event.coupleId != null;
 
     return Container(
@@ -78,7 +79,7 @@ class EventCard extends ConsumerWidget {
             ),
           ],
         ),
-        subtitle: event.description != null ? Text(event.description!) : null,
+        subtitle: _buildSubtitle(context, ref, isCouple),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -119,5 +120,60 @@ class EventCard extends ConsumerWidget {
     if (confirmed == true) {
       await ref.read(calendarNotifierProvider.notifier).deleteEvent(event.id);
     }
+  }
+
+  /// 설명 + 작성자 표시
+  Widget? _buildSubtitle(BuildContext context, WidgetRef ref, bool isCouple) {
+    final description = event.description;
+
+    // 커플 일정이면 작성자 표시
+    Widget? authorWidget;
+    if (isCouple && event.createdBy != null) {
+      final myUserId = ref.watch(authProvider.select((s) => s.userId));
+      final namesAsync = ref.watch(coupleMemberNamesProvider);
+
+      // 🔍 디버그 로그
+      // print('=== 작성자 디버그 ===');
+      // print('createdBy: ${event.createdBy}');
+      // print('myUserId: $myUserId');
+      // print('names data: ${namesAsync.valueOrNull}');
+      // print('names isLoading: ${namesAsync.isLoading}');
+      // print('names hasError: ${namesAsync.hasError}');
+      if (namesAsync.hasError) print('error: ${namesAsync.error}');
+
+      final authorName = namesAsync.maybeWhen(
+        data: (names) {
+          if (event.createdBy == myUserId) return '나';
+          return names[event.createdBy] ?? '상대방';
+        },
+        orElse: () => '',
+      );
+      if (authorName.isNotEmpty) {
+        authorWidget = Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              Icon(Icons.person, size: 12, color: Colors.grey.shade500),
+              const SizedBox(width: 2),
+              Text(
+                '$authorName 추가',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    // 설명도 없고 작성자도 없으면 null
+    if (description == null && authorWidget == null) return null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (description != null) Text(description),
+        if (authorWidget != null) authorWidget,
+      ],
+    );
   }
 }
