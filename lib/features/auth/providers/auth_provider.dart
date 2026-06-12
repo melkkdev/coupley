@@ -5,57 +5,12 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'dart:io';
 
 import '../../../core/common/nickname_generator.dart';
-
-/// 사용자 인증 상태
-class AuthState {
-  final bool isAuthenticated;
-  final String? userId;
-  final String? userName;
-  final String? email;
-  final String? photoUrl;
-
-  const AuthState({
-    required this.isAuthenticated,
-    this.userId,
-    this.userName,
-    this.email,
-    this.photoUrl,
-  });
-
-  const AuthState.unauthenticated()
-    : isAuthenticated = false,
-      userId = null,
-      userName = null,
-      email = null,
-      photoUrl = null;
-
-  AuthState.authenticated({required User user})
-    : isAuthenticated = true,
-      userId = user.uid,
-      userName = user.displayName,
-      email = user.email,
-      photoUrl = user.photoURL;
-  AuthState copyWith({
-    bool? isAuthenticated,
-    String? userId,
-    String? userName,
-    String? email,
-    String? photoUrl,
-  }) {
-    return AuthState(
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      userId: userId ?? this.userId,
-      userName: userName ?? this.userName,
-      email: email ?? this.email,
-      photoUrl: photoUrl ?? this.photoUrl,
-    );
-  }
-}
+import '../models/auth_status.dart';
 
 /// Auth 상태를 관리하는 Notifier
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState.unauthenticated()) {
-    // Firebase Auth 상태 변화 감지
+  AuthNotifier() : super(const AuthState.initializing()) {
+    // ← initializing으로
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user == null) {
         state = const AuthState.unauthenticated();

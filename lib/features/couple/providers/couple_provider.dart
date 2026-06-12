@@ -15,17 +15,24 @@ final coupleServiceProvider = Provider<CoupleService>((ref) {
 final coupleProvider = StreamProvider.autoDispose<Couple?>((ref) {
   final coupleService = ref.watch(coupleServiceProvider);
 
-  // userProfile 전체가 아니라 coupleId만 select
-  // (닉네임 등 다른 필드 변경 시 불필요한 재평가 방지)
   final coupleId = ref.watch(
     userProfileProvider.select((async) => async.valueOrNull?.coupleId),
   );
 
   if (coupleId == null) {
-    return Stream.value(null); // 아직 커플 연결 안 됨
+    return Stream.value(null);
   }
 
-  return coupleService.getCoupleStream(coupleId);
+  return coupleService.getCoupleStream(coupleId).map((couple) {
+    // coupleId는 있는데 couples 문서가 없음 = 상대가 연결 해제함
+    if (couple == null) {
+      final authState = ref.read(authProvider);
+      if (authState.userId != null) {
+        coupleService.clearMyCoupleId(authState.userId!);
+      }
+    }
+    return couple;
+  });
 });
 
 /// 커플 멤버들의 이름 맵 Provider { userId: userName }
@@ -95,7 +102,13 @@ class CoupleNotifier extends StateNotifier<AsyncValue<Couple?>> {
     state = const AsyncValue.loading();
     try {
       final coupleService = ref.read(coupleServiceProvider);
-      await coupleService.disconnect(couple.id, couple.members);
+      final authState = ref.read(authProvider);
+
+      if (authState.userId == null) {
+        throw Exception('로그인이 필요합니다');
+      }
+
+      await coupleService.disconnect(couple.id, authState.userId!);
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);

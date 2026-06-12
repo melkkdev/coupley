@@ -357,8 +357,18 @@ class _ConnectedView extends ConsumerWidget {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (dialogContext) => AlertDialog(
-                    title: const Text('연결 해제'),
-                    content: const Text('정말 커플 연결을 해제하시겠습니까?'),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('연결 해제'),
+                      ],
+                    ),
+                    content: const Text(
+                      '정말 커플 연결을 해제하시겠습니까?\n\n'
+                      '⚠️ 함께 공유한 모든 커플 일정이 삭제되며,\n'
+                      '이 작업은 되돌릴 수 없습니다.',
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(dialogContext, false),
@@ -367,7 +377,7 @@ class _ConnectedView extends ConsumerWidget {
                       TextButton(
                         onPressed: () => Navigator.pop(dialogContext, true),
                         child: const Text(
-                          '해제',
+                          '해제하기',
                           style: TextStyle(color: Colors.red),
                         ),
                       ),

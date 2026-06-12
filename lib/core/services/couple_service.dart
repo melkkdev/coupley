@@ -12,6 +12,9 @@ class CoupleService {
   CollectionReference<Map<String, dynamic>> get _usersRef =>
       _firestore.collection('users');
 
+  CollectionReference<Map<String, dynamic>> get _eventsRef =>
+      _firestore.collection('events');
+
   /// 초대 코드 생성 (커플 문서 생성, status: pending)
   Future<Couple> createInvite(String userId) async {
     // 중복되지 않는 코드 생성 (최대 5회 시도)
@@ -105,11 +108,29 @@ class CoupleService {
   }
 
   /// 커플 연결 해제
-  Future<void> disconnect(String coupleId, List<String> memberIds) async {
-    for (final userId in memberIds) {
-      await _usersRef.doc(userId).update({'coupleId': null});
+  /// 1. 커플 일정 삭제 (아직 멤버일 때 = 권한 있음)
+  /// 2. 내 coupleId 제거
+  /// 3. couples 문서 삭제
+  Future<void> disconnect(String coupleId, String myUserId) async {
+    // 1. 커플 공유 일정 모두 삭제 (연결 해제 전에 해야 권한 있음)
+    final coupleEvents = await _eventsRef
+        .where('coupleId', isEqualTo: coupleId)
+        .get();
+
+    for (final doc in coupleEvents.docs) {
+      await doc.reference.delete();
     }
+
+    // 2. 내 coupleId 제거
+    await _usersRef.doc(myUserId).update({'coupleId': null});
+
+    // 3. couples 문서 삭제 → 상대도 연결 해제 감지
     await _couplesRef.doc(coupleId).delete();
+  }
+
+  /// 내 coupleId 정리 (상대가 해제했을 때 자동 호출용)
+  Future<void> clearMyCoupleId(String myUserId) async {
+    await _usersRef.doc(myUserId).update({'coupleId': null});
   }
 
   /// 초대 코드로 커플 찾기 (내부용)
