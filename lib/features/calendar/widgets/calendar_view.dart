@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../core/common/spacing.dart';
+import '../../../core/common/korea_holidays.dart';
 import '../providers/calendar_provider.dart';
 import '../../../core/database/drift_database.dart';
 
@@ -39,10 +40,12 @@ class CalendarView extends ConsumerWidget {
               final focusedDate = ref.watch(focusedDateProvider);
 
               return TableCalendar(
+                locale: 'ko_KR',
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: focusedDate,
                 selectedDayPredicate: (day) => isSameDay(selectedDate, day),
+                holidayPredicate: KoreaHolidays.isHoliday,
                 onDaySelected: (selectedDay, focusedDay) {
                   ref.read(selectedDateProvider.notifier).state = selectedDay;
                   ref.read(focusedDateProvider.notifier).state = focusedDay;
@@ -60,6 +63,8 @@ class CalendarView extends ConsumerWidget {
                 calendarStyle: CalendarStyle(
                   // 행 높이 고정 (마커 유무와 무관하게 일정)
                   cellMargin: const EdgeInsets.all(6),
+                  weekendTextStyle: const TextStyle(color: Colors.red),
+                  holidayTextStyle: const TextStyle(color: Colors.red),
                   todayDecoration: BoxDecoration(
                     color: Colors.purple.shade200,
                     shape: BoxShape.circle,
@@ -79,6 +84,12 @@ class CalendarView extends ConsumerWidget {
                   titleTextStyle: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+                daysOfWeekStyle: const DaysOfWeekStyle(
+                  weekendStyle: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 calendarBuilders: CalendarBuilders(
