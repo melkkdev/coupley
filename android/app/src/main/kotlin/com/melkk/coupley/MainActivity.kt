@@ -1,4 +1,4 @@
-package com.mellkk.coupley
+package com.melkk.coupley
 
 import io.flutter.embedding.android.FlutterActivity
 

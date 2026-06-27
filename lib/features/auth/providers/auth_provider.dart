@@ -2,9 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
 import 'dart:io';
 
 import '../../../core/common/nickname_generator.dart';
+import '../../../core/services/notification_service.dart';
 import '../models/auth_status.dart';
 
 /// Auth 상태를 관리하는 Notifier
@@ -144,8 +146,65 @@ class AuthNotifier extends StateNotifier<AuthState> {
     // }
   }
 
+  /// 카카오 로그인
+  ///
+  /// 카카오톡 앱 설치 시 앱으로, 미설치 시 카카오 계정 웹으로 로그인.
+  /// Firebase Custom Auth 서버 없이 동작하도록 카카오 ID 기반 합성 이메일을
+  /// Firebase 이메일/패스워드 계정과 연결하는 방식(MVP).
+  Future<void> signInWithKakao() async {
+    try {
+      // 카카오톡 설치 여부에 따라 분기
+      if (await kakao.isKakaoTalkInstalled()) {
+        await kakao.UserApi.instance.loginWithKakaoTalk();
+      } else {
+        await kakao.UserApi.instance.loginWithKakaoAccount();
+      }
+
+      // 카카오 사용자 정보 조회
+      final user = await kakao.UserApi.instance.me();
+      final kakaoId = user.id.toString();
+      final nickname =
+          user.kakaoAccount?.profile?.nickname ?? NicknameGenerator.generate();
+
+      // 카카오 ID 기반 합성 Firebase 계정 정보
+      final syntheticEmail = 'kakao_$kakaoId@coupley.kakao';
+      final syntheticPassword = 'kakao_auth_$kakaoId';
+
+      try {
+        // 기존 계정 로그인 시도
+        await _auth.signInWithEmailAndPassword(
+          email: syntheticEmail,
+          password: syntheticPassword,
+        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
+          // 최초 로그인 → Firebase 계정 생성 후 닉네임 설정
+          final credential = await _auth.createUserWithEmailAndPassword(
+            email: syntheticEmail,
+            password: syntheticPassword,
+          );
+          await credential.user?.updateDisplayName(nickname);
+          await credential.user?.reload();
+        } else {
+          rethrow;
+        }
+      }
+    } catch (e) {
+      print('Kakao Sign In Error: $e');
+      rethrow;
+    }
+  }
+
   /// 로그아웃
   Future<void> signOut() async {
+    // FCM 토큰 제거 (로그아웃 전에 처리)
+    await NotificationService.clearToken();
+    // 카카오 로그인 상태이면 카카오도 로그아웃
+    try {
+      await kakao.UserApi.instance.logout();
+    } catch (_) {
+      // 카카오 로그인 상태가 아니어도 무시
+    }
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
   }
 

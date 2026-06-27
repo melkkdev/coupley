@@ -39,7 +39,9 @@ class CalendarView extends ConsumerWidget {
               final selectedDate = ref.watch(selectedDateProvider);
               final focusedDate = ref.watch(focusedDateProvider);
 
-              return TableCalendar(
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.smMd),
+                child: TableCalendar(
                 locale: 'ko_KR',
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
@@ -54,7 +56,8 @@ class CalendarView extends ConsumerWidget {
                   ref.read(focusedDateProvider.notifier).state = focusedDay;
                 },
                 calendarFormat: CalendarFormat.month,
-                rowHeight: 52, // 행 높이 고정 (마커 공간 포함)
+                daysOfWeekHeight: 32,
+                rowHeight: 58,
 
                 eventLoader: (day) {
                   final normalizedDay = DateTime(day.year, day.month, day.day);
@@ -128,6 +131,7 @@ class CalendarView extends ConsumerWidget {
                       ),
                     );
                   },
+                ),
                 ),
               );
             },
