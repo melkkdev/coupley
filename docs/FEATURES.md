@@ -41,7 +41,7 @@
 ### 3-1. 로그인
 이메일/비밀번호, 카카오, Google 로그인을 지원합니다. 이메일 회원가입 시 랜덤 닉네임이 자동 생성됩니다.
 
-![로그인 화면](screenshots/01_login.png)
+![로그인 화면](screenshots/2026-08-17/login/01_login.png)
 
 <br>
 
@@ -51,48 +51,48 @@
 - 하단: 선택한 날짜의 일정 리스트 (없으면 빈 상태 안내)
 - 우측 하단 `+` 버튼으로 일정 추가
 
-![캘린더 홈](screenshots/02_calendar_home.png)
+![캘린더 홈](screenshots/2026-08-17/calendar/02_calendar_home.png)
 
 <br>
 
 ### 3-3. 일정 추가
 `+` 버튼을 누르면 다이얼로그가 뜹니다. 커플 연결이 되어 있으면 **개인/커플** 선택 토글이 함께 표시되고(연결 안 된 상태에서는 개인 일정만), 제목·설명(선택)·종일 여부를 입력합니다.
 
-![일정 추가 다이얼로그](screenshots/03_add_event_dialog.png)
+![일정 추가 다이얼로그](screenshots/2026-08-17/add_event/03_add_event_dialog.png)
 
 **종일을 끄면** 시작 시간/종료 시간 입력 필드가 나타나고,
 
-![종일 해제 시 시간 필드 노출](screenshots/09_add_event_time_fields.png)
+![종일 해제 시 시간 필드 노출](screenshots/2026-08-17/add_event/09_add_event_time_fields.png)
 
 필드를 누르면 Flutter 기본 Material 시간 선택기(다이얼 방식, 숫자 직접 입력 모드 전환 가능)가 열립니다.
 
-![시간 선택 다이얼로그](screenshots/10_time_picker.png)
+![시간 선택 다이얼로그](screenshots/2026-08-17/add_event/10_time_picker.png)
 
 추가하면 캘린더의 해당 날짜에 점(dot) 마커가 생기고, 하단 리스트에 색상 바 + "개인"/"커플" 뱃지 + 제목 + 삭제 아이콘이 표시됩니다. (개인=파랑 계열, 커플=핑크 계열 — README 기준)
 
-![일정 추가 완료](screenshots/04_event_added.png)
+![일정 추가 완료](screenshots/2026-08-17/calendar/04_event_added.png)
 
 <br>
 
 ### 3-4. 설정
 톱니바퀴 아이콘을 누르면 뜨는 다이얼로그. **커플 연결**과 **로그아웃** 메뉴를 제공합니다.
 
-![설정 다이얼로그](screenshots/05_settings_dialog.png)
+![설정 다이얼로그](screenshots/2026-08-17/settings/05_settings_dialog.png)
 
 <br>
 
 ### 3-5. 커플 연결
 - **연결 안 된 상태**: "파트너와 연결하세요" 안내와 함께 `초대 코드 만들기` / `코드 입력하기` 버튼 표시
 
-  ![커플 연결 전](screenshots/07_couple_connect_start.png)
+  ![커플 연결 전](screenshots/2026-08-17/couple_connect/07_couple_connect_start.png)
 
 - **초대 코드 생성**: 6자리 영숫자 코드(예: `92RTTB`)가 발급되고, 복사 버튼과 `share_plus` 기반 공유 버튼(카카오톡 등)을 제공. 파트너가 코드를 입력할 때까지 "파트너의 합류를 기다리는 중" 상태 유지
 
-  ![초대 코드 발급](screenshots/08_invite_code.png)
+  ![초대 코드 발급](screenshots/2026-08-17/couple_connect/08_invite_code.png)
 
 - **연결된 상태**: 연결된 멤버 수(2명)와 함께 완료 화면 표시. "연결 해제" 시 확인 다이얼로그가 뜨고("함께 공유한 모든 커플 일정이 삭제되며, 되돌릴 수 없음" 경고), 확인하면 다시 미연결 상태로 돌아감
 
-  ![커플 연결 완료](screenshots/06_couple_connected.png)
+  ![커플 연결 완료](screenshots/2026-08-17/couple_connect/06_couple_connected.png)
 
 <br>
 
