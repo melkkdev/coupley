@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../core/common/spacing.dart';
 import '../../../core/common/korea_holidays.dart';
+import '../../../core/design/cozy/cozy_widgets.dart';
+import '../../../core/theme/app_theme.dart';
 import '../providers/calendar_provider.dart';
 import '../../../core/database/drift_database.dart';
+import '../../couple/models/anniversary.dart';
+import '../../couple/providers/couple_provider.dart';
 
 /// 캘린더(달력) 위젯
 class CalendarView extends ConsumerWidget {
@@ -20,24 +24,14 @@ class CalendarView extends ConsumerWidget {
       data: (events) {
         final eventsMap = getEventsMap(events);
 
-        return Container(
+        return CozyCard(
           margin: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
           // 선택 날짜 표시는 Consumer로 분리 (이 부분만 selectedDate watch)
           child: Consumer(
             builder: (context, ref, _) {
               final selectedDate = ref.watch(selectedDateProvider);
               final focusedDate = ref.watch(focusedDateProvider);
+              final anniversaryDays = _anniversaryDays(ref, focusedDate);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.smMd),
@@ -66,54 +60,92 @@ class CalendarView extends ConsumerWidget {
                 calendarStyle: CalendarStyle(
                   // 행 높이 고정 (마커 유무와 무관하게 일정)
                   cellMargin: const EdgeInsets.all(6),
-                  weekendTextStyle: const TextStyle(color: Colors.red),
-                  holidayTextStyle: const TextStyle(color: Colors.red),
-                  todayDecoration: BoxDecoration(
-                    color: Colors.purple.shade200,
-                    shape: BoxShape.circle,
+                  defaultTextStyle: const TextStyle(color: AppColors.ink),
+                  outsideTextStyle: TextStyle(
+                    color: AppColors.inkSoft.withValues(alpha: 0.45),
                   ),
-                  selectedDecoration: const BoxDecoration(
-                    color: Colors.purple,
-                    shape: BoxShape.circle,
+                  weekendTextStyle: const TextStyle(color: AppColors.coral),
+                  holidayTextStyle: const TextStyle(color: AppColors.coral),
+                  todayTextStyle: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w700,
                   ),
-                  markerDecoration: const BoxDecoration(
-                    color: Colors.blue,
+                  todayDecoration: const BoxDecoration(
+                    color: AppColors.roseBg,
                     shape: BoxShape.circle,
                   ),
                 ),
-                headerStyle: const HeaderStyle(
+                headerStyle: HeaderStyle(
                   formatButtonVisible: false,
                   titleCentered: true,
-                  titleTextStyle: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                  titleTextStyle: AppTheme.display(24),
+                  leftChevronIcon: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.ink,
+                  ),
+                  rightChevronIcon: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.ink,
                   ),
                 ),
                 daysOfWeekStyle: const DaysOfWeekStyle(
+                  weekdayStyle: TextStyle(
+                    color: AppColors.inkSoft,
+                    fontSize: 13,
+                  ),
                   weekendStyle: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w600,
+                    color: AppColors.coral,
+                    fontSize: 13,
                   ),
                 ),
                 calendarBuilders: CalendarBuilders(
+                  // 선택한 날짜는 하트 위에 표시한다
+                  selectedBuilder: (context, day, focusedDay) {
+                    return Center(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          const DoodleHeart(size: 44),
+                          Text(
+                            '${day.day}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                   markerBuilder: (context, day, eventList) {
-                    if (eventList.isEmpty) return null;
+                    final isAnniversary = anniversaryDays.contains(
+                      DateTime(day.year, day.month, day.day),
+                    );
+                    if (eventList.isEmpty && !isAnniversary) return null;
                     final events = eventList.cast<Event>();
                     final hasCouple = events.any((e) => e.coupleId != null);
                     final hasPersonal = events.any((e) => e.coupleId == null);
 
                     return Positioned(
-                      bottom: 6,
+                      bottom: 3,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (isAnniversary)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 1),
+                              child: DoodleHeart(
+                                size: 9,
+                                color: Color(0xFFE8B84A),
+                              ),
+                            ),
                           if (hasPersonal)
                             Container(
                               width: 6,
                               height: 6,
                               margin: const EdgeInsets.symmetric(horizontal: 1),
                               decoration: const BoxDecoration(
-                                color: Colors.blue,
+                                color: AppColors.sky,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -123,7 +155,7 @@ class CalendarView extends ConsumerWidget {
                               height: 6,
                               margin: const EdgeInsets.symmetric(horizontal: 1),
                               decoration: const BoxDecoration(
-                                color: Colors.pink,
+                                color: AppColors.coral,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -141,5 +173,17 @@ class CalendarView extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, stack) => Center(child: Text('에러: $error')),
     );
+  }
+
+  /// 보이는 달(앞뒤 주 포함)에 있는 기념일 날짜들
+  Set<DateTime> _anniversaryDays(WidgetRef ref, DateTime focused) {
+    final couple = ref.watch(coupleProvider).valueOrNull;
+    if (couple == null || !couple.isConnected) return const {};
+    return anniversariesBetween(
+      startDate: couple.startDate,
+      custom: couple.anniversaries,
+      from: DateTime(focused.year, focused.month, 1 - 7),
+      to: DateTime(focused.year, focused.month + 1, 7),
+    ).map((a) => a.date).toSet();
   }
 }

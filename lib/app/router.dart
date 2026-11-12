@@ -7,6 +7,7 @@ import '../features/auth/providers/auth_provider.dart';
 import '../core/debug/debug_provider.dart';
 import '../core/debug/debug_mode.dart';
 import '../features/couple/widgets/couple_connect_page.dart';
+import '../features/couple/widgets/anniversary_page.dart';
 
 /// 라우터 설정
 final routerProvider = Provider<GoRouter>((ref) {
@@ -62,6 +63,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/couple-connect',
         builder: (context, state) => const CoupleConnectPage(),
+      ),
+      GoRoute(
+        path: '/anniversaries',
+        builder: (context, state) => const AnniversaryPage(),
       ),
     ],
   );

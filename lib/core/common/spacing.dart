@@ -14,9 +14,9 @@ class AppSpacing {
   // Border Radius
   static const double radiusXs = 4.0;
   static const double radiusSm = 8.0;
-  static const double radiusMd = 12.0;
-  static const double radiusLg = 16.0;
-  static const double radiusXl = 24.0;
+  static const double radiusMd = 18.0;
+  static const double radiusLg = 24.0;
+  static const double radiusXl = 28.0;
 
   // Gap (SizedBox 대용)
   static const SizedBox gapXs = SizedBox(height: xs, width: xs);

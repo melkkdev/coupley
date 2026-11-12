@@ -5,6 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/common/spacing.dart';
+import '../../../core/design/cozy/cozy_widgets.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../couple/widgets/dday_card.dart';
+import '../../couple/widgets/anniversary_page.dart';
+import '../../couple/models/anniversary.dart';
+import '../../couple/providers/couple_provider.dart';
 import '../../../core/debug/debug_panel.dart';
 import '../../../core/services/realtime_sync_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -31,14 +37,7 @@ class CalendarHome extends ConsumerWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.purple.shade50, Colors.blue.shade50],
-              ),
-            ),
+          CozyBackground(
             child: SafeArea(
               child: Column(
                 children: [
@@ -52,7 +51,7 @@ class CalendarHome extends ConsumerWidget {
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.settings),
+                              icon: const Icon(Icons.settings_outlined, color: AppColors.ink),
                               onPressed: () {
                                 _showSettingsDialog(context, ref);
                               },
@@ -67,6 +66,8 @@ class CalendarHome extends ConsumerWidget {
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
+                          const DdayCard(),
+
                           // 캘린더
                           const CalendarView(),
 
@@ -80,38 +81,32 @@ class CalendarHome extends ConsumerWidget {
                                   DateFormat(
                                     'yyyy년 M월 d일',
                                   ).format(selectedDate),
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: AppTheme.display(24),
                                 ),
                                 AppSpacing.gapMd,
+                                _DayAnniversaries(date: selectedDate),
                                 selectedDayEventsAsync.when(
                                   data: (events) {
                                     if (events.isEmpty) {
-                                      return Container(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.xl,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            AppSpacing.radiusMd,
-                                          ),
+                                      return CozyCard(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: AppSpacing.lg,
                                         ),
                                         child: Center(
                                           child: Column(
                                             children: [
-                                              Icon(
-                                                Icons.event_busy,
-                                                size: 48,
-                                                color: Colors.grey.shade400,
-                                              ),
+                                              const CoupleDoodle(width: 110),
                                               AppSpacing.gapSm,
                                               Text(
-                                                '이벤트가 없습니다',
+                                                '아직 일정이 없어요',
+                                                style: AppTheme.display(20),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                '+ 버튼으로 오늘을 채워 보세요',
                                                 style: TextStyle(
-                                                  color: Colors.grey.shade600,
+                                                  fontSize: 13,
+                                                  color: AppColors.inkSoft,
                                                 ),
                                               ),
                                             ],
@@ -135,7 +130,8 @@ class CalendarHome extends ConsumerWidget {
                             ),
                           ),
 
-                          AppSpacing.gapXl,
+                          // + 버튼과 디버그 배지에 마지막 카드가 가리지 않도록 여백을 둔다
+                          const SizedBox(height: 96),
                         ],
                       ),
                     ),
@@ -151,7 +147,6 @@ class CalendarHome extends ConsumerWidget {
         onPressed: () {
           _showAddEventDialog(context, ref, selectedDate);
         },
-        backgroundColor: Colors.purple,
         child: const Icon(Icons.add),
       ),
     );
@@ -173,7 +168,7 @@ class CalendarHome extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.favorite, color: Colors.pink),
+              leading: const DoodleHeart(size: 22),
               title: const Text('커플 연결'),
               onTap: () {
                 Navigator.pop(context);
@@ -181,7 +176,7 @@ class CalendarHome extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.logout),
+              leading: const Icon(Icons.logout, color: AppColors.inkSoft),
               title: const Text('로그아웃'),
               onTap: () {
                 ref.read(authProvider.notifier).signOut();
@@ -265,6 +260,74 @@ class CalendarHome extends ConsumerWidget {
             child: const Text('변경'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 선택한 날짜에 돌아오는 기념일 (사귄 날 기준 자동 기념일 + 직접 추가한 기념일)
+class _DayAnniversaries extends ConsumerWidget {
+  final DateTime date;
+  const _DayAnniversaries({required this.date});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final couple = ref.watch(coupleProvider).valueOrNull;
+    if (couple == null || !couple.isConnected) return const SizedBox.shrink();
+
+    final items = anniversariesBetween(
+      startDate: couple.startDate,
+      custom: couple.anniversaries,
+      from: date,
+      to: date,
+    );
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: CozyCard(
+        color: AppColors.roseBg,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () => context.push('/anniversaries'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.smMd,
+            ),
+            child: Column(
+              children: [
+                for (final item in items)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: [
+                        AnniversaryBadge(
+                          icon: item.icon,
+                          size: 34,
+                          background: Colors.white,
+                        ),
+                        AppSpacing.gapSm,
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: AppTheme.display(22),
+                          ),
+                        ),
+                        const Text(
+                          '기념일',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.coral,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -135,7 +135,7 @@ class _AddEventDialogState extends ConsumerState<AddEventDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_isEditMode ? '이벤트 수정' : '이벤트 추가'),
+      title: Text(_isEditMode ? '일정 수정' : '일정 추가'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -180,7 +180,6 @@ class _AddEventDialogState extends ConsumerState<AddEventDialog> {
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: '제목',
-                border: OutlineInputBorder(),
               ),
             ),
             AppSpacing.gapMd,
@@ -188,7 +187,6 @@ class _AddEventDialogState extends ConsumerState<AddEventDialog> {
               controller: _descriptionController,
               decoration: const InputDecoration(
                 labelText: '설명 (선택)',
-                border: OutlineInputBorder(),
               ),
               maxLines: 3,
             ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/common/spacing.dart';
+import '../../../core/design/cozy/cozy_widgets.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/database/drift_database.dart';
 import '../providers/calendar_provider.dart';
 import 'add_event_dialog.dart';
@@ -19,20 +21,12 @@ class EventCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isCouple = event.coupleId != null;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return CozyCard(
+      margin: const EdgeInsets.only(bottom: AppSpacing.smMd),
       child: ListTile(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
         // 탭 → 수정 다이얼로그
         onTap: () {
           showDialog(
@@ -42,42 +36,28 @@ class EventCard extends ConsumerWidget {
           );
         },
         leading: Container(
-          width: 4,
-          height: 48,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
-            color: isCouple ? Colors.pink : Colors.blue,
-            borderRadius: BorderRadius.circular(2),
+            color: isCouple ? AppColors.roseBg : AppColors.skyBg,
+            shape: BoxShape.circle,
           ),
+          alignment: Alignment.center,
+          child: isCouple
+              ? const DoodleHeart(size: 20)
+              : const Icon(
+                  Icons.face_outlined,
+                  size: 22,
+                  color: AppColors.sky,
+                ),
         ),
-        title: Row(
-          children: [
-            // 개인/커플 구분 뱃지
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isCouple ? Colors.pink.shade100 : Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                isCouple ? '커플' : '개인',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: isCouple ? Colors.pink.shade700 : Colors.blue.shade700,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                event.title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
+        title: Text(
+          event.title,
+          style: const TextStyle(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
         ),
         subtitle: _buildSubtitle(context, ref, isCouple),
         trailing: Row(
@@ -86,10 +66,13 @@ class EventCard extends ConsumerWidget {
             if (!event.isAllDay && event.startTime != null)
               Text(
                 DateFormat('HH:mm').format(event.startTime!),
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: const TextStyle(color: AppColors.inkSoft, fontSize: 12),
               ),
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.inkSoft,
+              ),
               onPressed: () => _confirmDelete(context, ref),
             ),
           ],
@@ -102,8 +85,8 @@ class EventCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('이벤트 삭제'),
-        content: const Text('이 이벤트를 삭제하시겠습니까?'),
+        title: const Text('일정 삭제'),
+        content: const Text('이 일정을 삭제할까요?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -111,7 +94,10 @@ class EventCard extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('삭제'),
+            child: const Text(
+              '삭제',
+              style: TextStyle(color: AppColors.coral),
+            ),
           ),
         ],
       ),
@@ -153,11 +139,11 @@ class EventCard extends ConsumerWidget {
           padding: const EdgeInsets.only(top: 2),
           child: Row(
             children: [
-              Icon(Icons.person, size: 12, color: Colors.grey.shade500),
+              const Icon(Icons.person, size: 12, color: AppColors.inkSoft),
               const SizedBox(width: 2),
               Text(
                 '$authorName 추가',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                style: const TextStyle(fontSize: 11, color: AppColors.inkSoft),
               ),
             ],
           ),
@@ -171,7 +157,11 @@ class EventCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (description != null) Text(description),
+        if (description != null)
+          Text(
+            description,
+            style: const TextStyle(color: AppColors.inkSoft),
+          ),
         if (authorWidget != null) authorWidget,
       ],
     );

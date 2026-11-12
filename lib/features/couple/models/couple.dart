@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'anniversary.dart';
 
 /// 커플 연결 상태
 enum CoupleStatus {
@@ -25,6 +26,8 @@ class Couple {
   final String createdBy; // 코드를 생성한 사람
   final DateTime createdAt;
   final DateTime? connectedAt; // 연결 완료 시각
+  final DateTime? startDate; // 사귄 날 (직접 설정, 없으면 연결한 날로 센다)
+  final List<Anniversary> anniversaries; // 직접 추가한 기념일
 
   Couple({
     required this.id,
@@ -34,6 +37,8 @@ class Couple {
     required this.createdBy,
     required this.createdAt,
     this.connectedAt,
+    this.startDate,
+    this.anniversaries = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -46,6 +51,8 @@ class Couple {
       'connectedAt': connectedAt != null
           ? Timestamp.fromDate(connectedAt!)
           : null,
+      'startDate': startDate != null ? dateKey(startDate!) : null,
+      'anniversaries': anniversaries.map((a) => a.toMap()).toList(),
     };
   }
 
@@ -63,6 +70,12 @@ class Couple {
       connectedAt: data['connectedAt'] != null
           ? (data['connectedAt'] as Timestamp).toDate()
           : null,
+      startDate: data['startDate'] != null
+          ? parseDateKey(data['startDate'] as String)
+          : null,
+      anniversaries: (data['anniversaries'] as List? ?? const [])
+          .map((e) => Anniversary.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList(),
     );
   }
 
@@ -71,6 +84,9 @@ class Couple {
     final others = members.where((id) => id != myUserId).toList();
     return others.isEmpty ? null : others.first;
   }
+
+  /// D+N을 셀 기준일: 사귄 날을 설정했으면 그 날, 아니면 연결한 날
+  DateTime? get togetherSince => startDate ?? connectedAt;
 
   /// 연결 완료 여부
   bool get isConnected => status == CoupleStatus.connected;

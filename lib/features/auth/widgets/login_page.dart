@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import '../../../core/common/spacing.dart';
+import '../../../core/design/cozy/cozy_widgets.dart';
+import '../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 /// 로그인 페이지
@@ -104,14 +106,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.purple.shade100, Colors.blue.shade100],
-              ),
-            ),
+          CozyBackground(
             child: SafeArea(
               child: SingleChildScrollView(
                 child: Padding(
@@ -119,42 +114,24 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.calendar_month,
-                        size: 100,
-                        color: Colors.purple,
-                      ),
+                      const CoupleDoodle(width: 200),
                       AppSpacing.gapMd,
-                      const Text(
-                        'Coupley',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple,
-                        ),
-                      ),
+                      Text('Coupley', style: AppTheme.display(44)),
                       AppSpacing.gapSm,
-                      Text(
+                      const Text(
                         '우리의 특별한 순간을 기록하세요',
                         style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.purple.shade700,
+                          fontSize: 15,
+                          color: AppColors.inkSoft,
                         ),
                       ),
-                      AppSpacing.gapXxl,
                       AppSpacing.gapXl,
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           hintText: '이메일',
-                          filled: true,
-                          fillColor: Colors.white,
                           prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            borderSide: BorderSide.none,
-                          ),
                         ),
                       ),
                       AppSpacing.gapSm,
@@ -163,13 +140,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         obscureText: true,
                         decoration: InputDecoration(
                           hintText: '비밀번호',
-                          filled: true,
-                          fillColor: Colors.white,
                           prefixIcon: const Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            borderSide: BorderSide.none,
-                          ),
                         ),
                       ),
                       AppSpacing.gapMd,
@@ -178,13 +149,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         height: 56,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _handleEmailAuth,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            ),
-                          ),
                           child: Text(
                             _isSignUpMode ? '회원가입' : '로그인',
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -196,7 +160,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         onPressed: () => setState(() => _isSignUpMode = !_isSignUpMode),
                         child: Text(
                           _isSignUpMode ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입',
-                          style: const TextStyle(color: Colors.purple),
+                          style: const TextStyle(color: AppColors.ink),
                         ),
                       ),
                       AppSpacing.gapMd,
@@ -205,7 +169,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           const Expanded(child: Divider()),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                            child: Text('또는', style: TextStyle(color: Colors.grey.shade600)),
+                            child: const Text('또는', style: TextStyle(color: AppColors.inkSoft)),
                           ),
                           const Expanded(child: Divider()),
                         ],
@@ -244,11 +208,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
+                            foregroundColor: AppColors.ink,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                             ),
-                            elevation: 2,
+                            elevation: 0,
+                            side: const BorderSide(
+                              color: AppColors.line,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                       ),
@@ -274,12 +242,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           ),
                         ),
                       ],
-                      AppSpacing.gapXxl,
-                      AppSpacing.gapLg,
-                      Text(
+                      AppSpacing.gapXl,
+                      const Text(
                         '로그인하면 이벤트가\n클라우드에 안전하게 저장됩니다',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                        style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
                       ),
                     ],
                   ),

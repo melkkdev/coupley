@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/user_provider.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../auth/providers/auth_provider.dart';
 
 /// 상단 인사 + 닉네임 + 편집 버튼
@@ -15,21 +16,25 @@ class GreetingHeader extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '안녕하세요 👋',
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+        const Text(
+          '오늘도 좋은 하루예요',
+          style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
         ),
         Row(
           children: [
             Text(
               authState.userName ?? '사용자',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: AppTheme.display(26),
             ),
             const SizedBox(width: 4),
             GestureDetector(
               onTap: () =>
                   _showEditNameDialog(context, ref, authState.userName ?? ''),
-              child: Icon(Icons.edit, size: 16, color: Colors.grey.shade600),
+              child: const Icon(
+                Icons.edit_outlined,
+                size: 16,
+                color: AppColors.inkSoft,
+              ),
             ),
           ],
         ),

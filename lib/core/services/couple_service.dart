@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../features/couple/models/anniversary.dart';
 import '../../features/couple/models/couple.dart';
 import '../../features/couple/invite_code_generator.dart';
 
@@ -136,6 +137,52 @@ class CoupleService {
   /// 내 coupleId 정리 (상대가 해제했을 때 자동 호출용)
   Future<void> clearMyCoupleId(String myUserId) async {
     await _usersRef.doc(myUserId).update({'coupleId': null});
+  }
+
+  /// 사귄 날 설정
+  Future<void> updateStartDate(String coupleId, DateTime date) async {
+    await _couplesRef.doc(coupleId).update({'startDate': dateKey(date)});
+  }
+
+  /// 기념일 추가 또는 수정 (같은 id가 있으면 교체)
+  ///
+  /// 두 사람이 동시에 고쳐도 서로의 변경을 덮어쓰지 않도록 트랜잭션으로 읽고 쓴다.
+  Future<void> saveAnniversary(String coupleId, Anniversary anniversary) {
+    return _updateAnniversaries(coupleId, (list) {
+      final i = list.indexWhere((a) => a.id == anniversary.id);
+      if (i >= 0) {
+        list[i] = anniversary;
+      } else {
+        list.add(anniversary);
+      }
+    });
+  }
+
+  /// 기념일 삭제
+  Future<void> deleteAnniversary(String coupleId, String anniversaryId) {
+    return _updateAnniversaries(
+      coupleId,
+      (list) => list.removeWhere((a) => a.id == anniversaryId),
+    );
+  }
+
+  /// 새 기념일 id (Firestore 자동 id 형식)
+  String newAnniversaryId() => _couplesRef.doc().id;
+
+  Future<void> _updateAnniversaries(
+    String coupleId,
+    void Function(List<Anniversary> list) change,
+  ) async {
+    final ref = _couplesRef.doc(coupleId);
+    await _firestore.runTransaction((tx) async {
+      final snapshot = await tx.get(ref);
+      if (!snapshot.exists) throw Exception('커플 정보를 찾을 수 없습니다');
+      final list = Couple.fromFirestore(snapshot).anniversaries.toList();
+      change(list);
+      tx.update(ref, {
+        'anniversaries': list.map((a) => a.toMap()).toList(),
+      });
+    });
   }
 
   /// 초대 코드로 커플 찾기 (내부용)

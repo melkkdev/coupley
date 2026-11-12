@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router.dart';
+import '../core/theme/app_theme.dart';
 import '../features/auth/providers/auth_provider.dart';
 import '../features/couple/providers/couple_provider.dart';
 import '../core/services/sync_provider.dart';
@@ -56,23 +59,21 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Coupley',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.purple,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: Colors.purple.shade50,
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Colors.purple,
-          foregroundColor: Colors.white,
-        ),
-      ),
+      theme: AppTheme.light(),
       routerConfig: router,
+      // 날짜·시간 선택기 등 기본 위젯을 한국어로 표시
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [Locale('ko', 'KR')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // 앱바가 없는 화면도 밝은 배경에 맞춰 상태바 아이콘을 어둡게 한다
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.overlayStyle,
+        child: child!,
+      ),
     );
   }
 }
