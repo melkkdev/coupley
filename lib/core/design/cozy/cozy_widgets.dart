@@ -107,8 +107,22 @@ Path heartPath(Offset center, double r) {
   final y = center.dy;
   return Path()
     ..moveTo(x, y + r * 0.95)
-    ..cubicTo(x - r * 1.35, y + r * 0.1, x - r * 1.0, y - r * 1.05, x, y - r * 0.3)
-    ..cubicTo(x + r * 1.0, y - r * 1.05, x + r * 1.35, y + r * 0.1, x, y + r * 0.95)
+    ..cubicTo(
+      x - r * 1.35,
+      y + r * 0.1,
+      x - r * 1.0,
+      y - r * 1.05,
+      x,
+      y - r * 0.3,
+    )
+    ..cubicTo(
+      x + r * 1.0,
+      y - r * 1.05,
+      x + r * 1.35,
+      y + r * 0.1,
+      x,
+      y + r * 0.95,
+    )
     ..close();
 }
 
@@ -121,10 +135,7 @@ class DoodleHeart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size.square(size),
-      painter: _HeartPainter(color),
-    );
+    return CustomPaint(size: Size.square(size), painter: _HeartPainter(color));
   }
 }
 
@@ -224,7 +235,8 @@ class _CouplePainter extends CustomPainter {
     for (final x in [cx - 25.0, cx + 25.0]) {
       _shape(
         c,
-        Path()..addOval(Rect.fromCircle(center: Offset(x, cy - 27), radius: 11)),
+        Path()
+          ..addOval(Rect.fromCircle(center: Offset(x, cy - 27), radius: 11)),
         fill,
         stroke,
       );
@@ -232,10 +244,9 @@ class _CouplePainter extends CustomPainter {
     // 머리
     _shape(
       c,
-      Path()
-        ..addOval(
-          Rect.fromCenter(center: const Offset(cx, cy), width: 72, height: 62),
-        ),
+      Path()..addOval(
+        Rect.fromCenter(center: const Offset(cx, cy), width: 72, height: 62),
+      ),
       fill,
       stroke,
     );
@@ -303,10 +314,9 @@ class _CouplePainter extends CustomPainter {
     // 머리
     _shape(
       c,
-      Path()
-        ..addOval(
-          Rect.fromCenter(center: const Offset(cx, cy), width: 68, height: 58),
-        ),
+      Path()..addOval(
+        Rect.fromCenter(center: const Offset(cx, cy), width: 68, height: 58),
+      ),
       fill,
       stroke,
     );
@@ -338,4 +348,65 @@ class _CouplePainter extends CustomPainter {
   @override
   bool shouldRepaint(_CouplePainter oldDelegate) =>
       oldDelegate.together != together;
+}
+
+/// 캐릭터 그림 자리.
+///
+/// 지금은 그림 파일이 없어 연한 빈 상자만 보여준다. 그림이 준비되면
+/// `assets/images/`에 넣고 [asset]에 경로를 넘기면 그 그림을 그린다.
+class CharacterSlot extends StatelessWidget {
+  final double height;
+  final double? width;
+  final String? asset;
+
+  const CharacterSlot({super.key, this.height = 140, this.width, this.asset});
+
+  @override
+  Widget build(BuildContext context) {
+    if (asset != null) {
+      return Image.asset(
+        asset!,
+        height: height,
+        width: width,
+        fit: BoxFit.contain,
+      );
+    }
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        color: AppColors.creamDeep,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.image_outlined,
+        size: height * 0.22,
+        color: AppColors.inkSoft.withValues(alpha: 0.35),
+      ),
+    );
+  }
+}
+
+/// 하트 + 손글씨 제목으로 된 목록 머리글
+class SectionTitle extends StatelessWidget {
+  final String text;
+  final Widget? trailing;
+
+  const SectionTitle(this.text, {super.key, this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Row(
+        children: [
+          const DoodleHeart(size: 16, color: AppColors.pink),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: AppTheme.display(22))),
+          ?trailing,
+        ],
+      ),
+    );
+  }
 }

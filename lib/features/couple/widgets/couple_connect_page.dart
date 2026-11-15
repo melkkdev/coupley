@@ -55,12 +55,9 @@ class _NotConnectedView extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AppSpacing.gapMd,
-          const CoupleDoodle(width: 190, together: false),
+          const CharacterSlot(height: 130, width: 190),
           AppSpacing.gapLg,
-          Text(
-            '짝꿍과 연결해 보세요',
-            style: AppTheme.display(30),
-          ),
+          Text('짝꿍과 연결해 보세요', style: AppTheme.display(30)),
           AppSpacing.gapSm,
           Text(
             '초대 코드를 만들어 공유하거나\n받은 코드를 입력하세요',
@@ -132,9 +129,7 @@ class _NotConnectedView extends ConsumerWidget {
         content: TextField(
           controller: controller,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            hintText: '예: A7K2P9',
-          ),
+          decoration: const InputDecoration(hintText: '예: A7K2P9'),
           maxLength: 6,
         ),
         actions: [
@@ -193,7 +188,11 @@ class _MyCodeCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.hourglass_empty, size: 18, color: AppColors.coral),
+              const Icon(
+                Icons.hourglass_empty,
+                size: 18,
+                color: AppColors.coral,
+              ),
               AppSpacing.gapSm,
               Text(
                 '파트너의 합류를 기다리는 중',
@@ -216,7 +215,7 @@ class _MyCodeCard extends ConsumerWidget {
               fontSize: 36,
               fontWeight: FontWeight.bold,
               letterSpacing: 8,
-              color: AppColors.coral,
+              color: AppColors.coralDeep,
             ),
           ),
           AppSpacing.gapSm,
@@ -258,7 +257,10 @@ class _MyCodeCard extends ConsumerWidget {
                   .read(coupleNotifierProvider.notifier)
                   .disconnect(couple);
             },
-            child: const Text('이 코드 취소', style: TextStyle(color: AppColors.coral)),
+            child: const Text(
+              '이 코드 취소',
+              style: TextStyle(color: AppColors.coral),
+            ),
           ),
         ],
       ),
@@ -286,12 +288,9 @@ class _ConnectedView extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CoupleDoodle(width: 200),
+              const CharacterSlot(height: 130, width: 200),
               AppSpacing.gapLg,
-              Text(
-                '이제 우리 둘의 달력이에요',
-                style: AppTheme.display(30),
-              ),
+              Text('이제 우리 둘의 달력이에요', style: AppTheme.display(30)),
               AppSpacing.gapSm,
               Text(
                 '이제 일정을 함께 공유할 수 있어요',
@@ -328,7 +327,10 @@ class _ConnectedView extends ConsumerWidget {
                     builder: (dialogContext) => AlertDialog(
                       title: const Row(
                         children: [
-                          Icon(Icons.warning_amber_rounded, color: AppColors.coral),
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: AppColors.coral,
+                          ),
                           SizedBox(width: 8),
                           Text('연결 해제'),
                         ],
@@ -360,7 +362,10 @@ class _ConnectedView extends ConsumerWidget {
                         .disconnect(couple);
                   }
                 },
-                child: const Text('연결 해제', style: TextStyle(color: AppColors.coral)),
+                child: const Text(
+                  '연결 해제',
+                  style: TextStyle(color: AppColors.coral),
+                ),
               ),
             ],
           ),

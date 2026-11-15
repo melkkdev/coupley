@@ -4,6 +4,8 @@ import 'dart:io';
 import '../../../core/common/spacing.dart';
 import '../../../core/design/cozy/cozy_widgets.dart';
 import '../../../core/theme/app_theme.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/router.dart';
 import '../providers/auth_provider.dart';
 
 /// 로그인 페이지
@@ -16,10 +18,6 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   bool _isLoading = false;
-  // 추가: 이메일 로그인용
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isSignUpMode = false; // false=로그인, true=회원가입
 
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
@@ -72,35 +70,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Future<void> _handleEmailAuth() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('이메일과 비밀번호를 입력하세요')));
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    try {
-      if (_isSignUpMode) {
-        await ref.read(authProvider.notifier).signUpWithEmail(email, password);
-      } else {
-        await ref.read(authProvider.notifier).signInWithEmail(email, password);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,145 +77,72 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         children: [
           CozyBackground(
             child: SafeArea(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.xl,
+                  ),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CoupleDoodle(width: 200),
-                      AppSpacing.gapMd,
-                      Text('Coupley', style: AppTheme.display(44)),
-                      AppSpacing.gapSm,
+                      const CharacterSlot(height: 190, width: 240),
+                      AppSpacing.gapLg,
+                      Text(
+                        'Coupley',
+                        style: AppTheme.display(46, color: AppColors.coralDeep),
+                      ),
+                      const SizedBox(height: 2),
                       const Text(
-                        '우리의 특별한 순간을 기록하세요',
+                        '둘이 함께 쓰는 커플 공유 캘린더',
                         style: TextStyle(
-                          fontSize: 15,
+                          fontSize: 14,
                           color: AppColors.inkSoft,
                         ),
                       ),
                       AppSpacing.gapXl,
-                      TextField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: InputDecoration(
-                          hintText: '이메일',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                        ),
+                      _LoginButton(
+                        icon: Icons.mail_outline_rounded,
+                        label: '이메일로 시작하기',
+                        onPressed: _isLoading
+                            ? null
+                            : () => context.push(AppRoutes.emailLogin),
                       ),
                       AppSpacing.gapSm,
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: InputDecoration(
-                          hintText: '비밀번호',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                        ),
-                      ),
-                      AppSpacing.gapMd,
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleEmailAuth,
-                          child: Text(
-                            _isSignUpMode ? '회원가입' : '로그인',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                        ),
+                      // 카카오 로그인 버튼은 카카오 디자인 가이드에 맞춰 노란색을 쓴다
+                      _LoginButton(
+                        icon: Icons.chat_bubble_rounded,
+                        label: '카카오톡 계정으로 계속하기',
+                        background: const Color(0xFFFEE500),
+                        foreground: const Color(0xFF191919),
+                        onPressed: _isLoading ? null : _handleKakaoSignIn,
                       ),
                       AppSpacing.gapSm,
-                      TextButton(
-                        onPressed: () => setState(() => _isSignUpMode = !_isSignUpMode),
-                        child: Text(
-                          _isSignUpMode ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입',
-                          style: const TextStyle(color: AppColors.ink),
-                        ),
-                      ),
-                      AppSpacing.gapMd,
-                      Row(
-                        children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                            child: const Text('또는', style: TextStyle(color: AppColors.inkSoft)),
-                          ),
-                          const Expanded(child: Divider()),
-                        ],
-                      ),
-                      AppSpacing.gapMd,
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _handleKakaoSignIn,
-                          icon: const Icon(Icons.chat_bubble, size: 22),
-                          label: const Text(
-                            '카카오로 로그인',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFEE500),
-                            foregroundColor: const Color(0xFF191919),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            ),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
-                      AppSpacing.gapMd,
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _handleGoogleSignIn,
-                          icon: const Icon(Icons.login, size: 24),
-                          label: const Text(
-                            'Google로 로그인',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.ink,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                            ),
-                            elevation: 0,
-                            side: const BorderSide(
-                              color: AppColors.line,
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
+                      _LoginButton(
+                        icon: Icons.g_mobiledata_rounded,
+                        label: 'Google 계정으로 계속하기',
+                        background: Colors.white,
+                        foreground: AppColors.ink,
+                        bordered: true,
+                        onPressed: _isLoading ? null : _handleGoogleSignIn,
                       ),
                       if (Platform.isIOS) ...[
-                        AppSpacing.gapMd,
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _handleAppleSignIn,
-                            icon: const Icon(Icons.apple, size: 24),
-                            label: const Text(
-                              'Apple로 로그인',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                              ),
-                            ),
-                          ),
+                        AppSpacing.gapSm,
+                        _LoginButton(
+                          icon: Icons.apple,
+                          label: 'Apple로 계속하기',
+                          background: Colors.black,
+                          foreground: Colors.white,
+                          onPressed: _isLoading ? null : _handleAppleSignIn,
                         ),
                       ],
-                      AppSpacing.gapXl,
+                      AppSpacing.gapLg,
                       const Text(
-                        '로그인하면 이벤트가\n클라우드에 안전하게 저장됩니다',
+                        '로그인하면 일정이 클라우드에 안전하게 저장돼요',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.inkSoft,
+                        ),
                       ),
                     ],
                   ),
@@ -256,7 +152,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.4),
+              color: Colors.black.withValues(alpha: 0.4),
               child: const Center(
                 child: CircularProgressIndicator(
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -264,6 +160,52 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// 로그인 화면의 둥근 큰 버튼
+class _LoginButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final Color background;
+  final Color foreground;
+  final bool bordered;
+
+  const _LoginButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.background = AppColors.coral,
+    this.foreground = Colors.white,
+    this.bordered = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 22),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: background,
+          foregroundColor: foreground,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(27),
+            side: bordered
+                ? const BorderSide(color: AppColors.line, width: 1.5)
+                : BorderSide.none,
+          ),
+        ),
       ),
     );
   }

@@ -15,6 +15,25 @@ enum AnniversaryIcon {
   }
 }
 
+/// 기념일 카드 색
+enum AnniversaryColor {
+  coral('coral', '코랄'),
+  pink('pink', '핑크'),
+  mint('mint', '민트');
+
+  const AnniversaryColor(this.value, this.label);
+  final String value;
+  final String label;
+
+  /// 예전에 저장돼 색 값이 없는 기념일은 코랄로 읽는다
+  static AnniversaryColor fromString(String? value) {
+    return AnniversaryColor.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => AnniversaryColor.coral,
+    );
+  }
+}
+
 /// 커플이 직접 추가한 기념일 (생일, 첫 만남 등)
 ///
 /// couples 문서의 `anniversaries` 배열에 저장한다. 하위 컬렉션을 쓰지 않아
@@ -27,6 +46,10 @@ class Anniversary {
   /// true면 매년 같은 날 반복 (생일처럼)
   final bool yearly;
   final AnniversaryIcon icon;
+  final AnniversaryColor color;
+
+  /// 메모 (최대 80자, 없으면 null)
+  final String? memo;
 
   const Anniversary({
     required this.id,
@@ -34,6 +57,8 @@ class Anniversary {
     required this.date,
     this.yearly = true,
     this.icon = AnniversaryIcon.heart,
+    this.color = AnniversaryColor.coral,
+    this.memo,
   });
 
   Map<String, dynamic> toMap() => {
@@ -43,6 +68,8 @@ class Anniversary {
     'date': dateKey(date),
     'yearly': yearly,
     'icon': icon.value,
+    'color': color.value,
+    if (memo != null) 'memo': memo,
   };
 
   factory Anniversary.fromMap(Map<String, dynamic> map) {
@@ -52,21 +79,8 @@ class Anniversary {
       date: parseDateKey(map['date'] as String),
       yearly: map['yearly'] as bool? ?? true,
       icon: AnniversaryIcon.fromString(map['icon'] as String?),
-    );
-  }
-
-  Anniversary copyWith({
-    String? title,
-    DateTime? date,
-    bool? yearly,
-    AnniversaryIcon? icon,
-  }) {
-    return Anniversary(
-      id: id,
-      title: title ?? this.title,
-      date: date ?? this.date,
-      yearly: yearly ?? this.yearly,
-      icon: icon ?? this.icon,
+      color: AnniversaryColor.fromString(map['color'] as String?),
+      memo: map['memo'] as String?,
     );
   }
 }
@@ -76,6 +90,9 @@ class AnniversaryOccurrence {
   final String title;
   final DateTime date;
   final AnniversaryIcon icon;
+
+  /// 자동 기념일은 코랄
+  AnniversaryColor get color => source?.color ?? AnniversaryColor.coral;
 
   /// 직접 추가한 기념일이면 원본, 사귄 날 기준 자동 기념일이면 null
   final Anniversary? source;
@@ -110,8 +127,42 @@ int daysUntil(DateTime from, DateTime to) {
   return b.difference(a).inDays;
 }
 
-/// D-day 표기: 오늘이면 'D-day', 남았으면 'D-12'
-String dDayLabel(int daysLeft) => daysLeft == 0 ? 'D-day' : 'D-$daysLeft';
+/// D-day 표기: 오늘이면 'D-day', 남았으면 'D-12', 지났으면 'D+3'
+String dDayLabel(int daysLeft) => daysLeft == 0
+    ? 'D-day'
+    : daysLeft > 0
+    ? 'D-$daysLeft'
+    : 'D+${-daysLeft}';
+
+/// 남은 날 문구: '오늘이에요', '12일 남음', '3일 지남'
+String daysLeftLabel(int daysLeft) => daysLeft == 0
+    ? '오늘이에요'
+    : daysLeft > 0
+    ? '$daysLeft일 남음'
+    : '${-daysLeft}일 지남';
+
+/// 함께한 날수. 시작한 날을 1일째로 센다. 시각은 무시하고 날짜만 비교한다.
+int daysTogether(DateTime since, DateTime now) => daysUntil(since, now) + 1;
+
+/// 이미 지나간 한 번뿐인 기념일 (최근 것부터)
+List<AnniversaryOccurrence> pastOneTimeAnniversaries({
+  List<Anniversary> custom = const [],
+  required DateTime today,
+}) {
+  final from = _day(today);
+  final list = [
+    for (final a in custom)
+      if (!a.yearly && _day(a.date).isBefore(from))
+        AnniversaryOccurrence(
+          title: a.title,
+          date: _day(a.date),
+          icon: a.icon,
+          source: a,
+        ),
+  ];
+  list.sort((a, b) => b.date.compareTo(a.date));
+  return list;
+}
 
 /// [base]의 월/일을 [year]에 맞춘다. 2월 29일은 평년에 2월 28일로 옮긴다.
 DateTime _sameDayIn(DateTime base, int year) {

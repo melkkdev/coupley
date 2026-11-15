@@ -5,15 +5,20 @@ import 'package:flutter/services.dart';
 class AppColors {
   AppColors._();
 
-  static const cream = Color(0xFFFFF8F3); // 전체 배경
-  static const ink = Color(0xFF3F3532); // 손그림 선, 본문 글자
-  static const inkSoft = Color(0xFF85756F); // 보조 글자
-  static const line = Color(0xFFF0E2DB); // 카드 테두리, 구분선
-  static const coral = Color(0xFFDB5F5A); // 주요 버튼, 선택 상태
-  static const rose = Color(0xFFFFB9B3); // 볼터치, 오늘 표시
-  static const roseBg = Color(0xFFFFEBE7); // 커플 일정 배경
-  static const sky = Color(0xFF5E93BC); // 개인 일정
-  static const skyBg = Color(0xFFE6F1F8); // 개인 일정 배경
+  // Readdy 시안(2026-11) 팔레트
+  static const cream = Color(0xFFFFFBF2); // 전체 배경
+  static const creamDeep = Color(0xFFFCF3E4); // 섹션 배경, 입력칸 묶음
+  static const ink = Color(0xFF3A2A21); // 손그림 선, 본문 글자
+  static const inkSoft = Color(0xFF847065); // 보조 글자
+  static const line = Color(0xFFF3E4D3); // 카드 테두리, 구분선
+  static const coral = Color(0xFFF1735C); // 주요 버튼, 선택 상태, 커플 일정
+  static const coralDeep = Color(0xFFD95D49); // 코랄 글자 (밝은 배경 위)
+  static const rose = Color(0xFFFFAD98); // 볼터치
+  static const roseBg = Color(0xFFFFE1D7); // 커플 일정 배경
+  static const pink = Color(0xFFF183A7); // 포인트 (하트, 토글)
+  static const pinkBg = Color(0xFFFFE5ED); // 안내 상자, 배지 배경
+  static const mint = Color(0xFF51B48D); // 개인 일정
+  static const mintBg = Color(0xFFDDF5E9); // 개인 일정 배경
 }
 
 /// 글꼴 이름. 손글씨는 제목에만 쓰고, 긴 글은 읽기 쉬운 본문체로 쓴다.
@@ -133,7 +138,7 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? AppColors.coral
+              ? AppColors.pink
               : AppColors.line,
         ),
         thumbColor: const WidgetStatePropertyAll(Colors.white),
@@ -147,6 +152,27 @@ class AppTheme {
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.coral,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.roseBg,
+        elevation: 0,
+        height: 68,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            fontSize: 12,
+            color: states.contains(WidgetState.selected)
+                ? AppColors.coralDeep
+                : AppColors.inkSoft,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? AppColors.coral
+                : AppColors.inkSoft,
+          ),
+        ),
       ),
     );
   }

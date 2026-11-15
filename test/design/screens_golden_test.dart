@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:coupley/app/router.dart';
 import 'package:coupley/core/database/drift_database.dart';
 import 'package:coupley/core/services/realtime_sync_provider.dart';
 import 'package:coupley/core/theme/app_theme.dart';
@@ -7,17 +8,18 @@ import 'package:coupley/features/auth/models/auth_status.dart';
 import 'package:coupley/features/auth/providers/auth_provider.dart';
 import 'package:coupley/features/auth/widgets/login_page.dart';
 import 'package:coupley/features/calendar/providers/calendar_provider.dart';
-import 'package:coupley/features/calendar/widgets/calendar_home.dart';
+import 'package:coupley/features/calendar/widgets/event_form_page.dart';
 import 'package:coupley/features/couple/models/anniversary.dart';
 import 'package:coupley/features/couple/models/couple.dart';
 import 'package:coupley/features/couple/providers/couple_provider.dart';
-import 'package:coupley/features/couple/widgets/anniversary_page.dart';
+import 'package:coupley/features/couple/widgets/anniversary_form_page.dart';
 import 'package:coupley/features/couple/widgets/couple_connect_page.dart';
-import 'package:coupley/features/couple/widgets/dday_card.dart';
+import 'package:coupley/features/settings/providers/notification_settings_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,6 +41,7 @@ class _FakeAuth extends StateNotifier<AuthState> implements AuthNotifier {
           isAuthenticated: true,
           userId: 'me',
           userName: '민지',
+          email: 'minji@example.com',
         ),
       );
 
@@ -46,15 +49,28 @@ class _FakeAuth extends StateNotifier<AuthState> implements AuthNotifier {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Event _event(int id, String title, {String? coupleId, DateTime? start}) {
-  final date = DateTime(2026, 11, 5);
+class _PushOn extends PushEnabledNotifier {
+  @override
+  Future<bool> build() async => true;
+}
+
+Event _event(
+  int id,
+  String title, {
+  String? coupleId,
+  DateTime? start,
+  DateTime? end,
+  int day = 5,
+}) {
+  final date = DateTime(2026, 11, day);
   return Event(
     id: id,
     title: title,
     date: date,
-    color: '#FF2196F3',
+    color: '#FF51B48D',
     isAllDay: start == null,
     startTime: start,
+    endTime: end,
     userId: 'me',
     coupleId: coupleId,
     createdBy: 'me',
@@ -79,14 +95,28 @@ Couple _couple(CoupleStatus status) => Couple(
       date: DateTime(1998, 12, 24),
       icon: AnniversaryIcon.cake,
     ),
-    Anniversary(id: 'a2', title: '첫 만남', date: DateTime(2025, 7, 12)),
+    Anniversary(
+      id: 'a2',
+      title: '첫 만남',
+      date: DateTime(2025, 7, 12),
+      color: AnniversaryColor.mint,
+    ),
+    Anniversary(
+      id: 'a3',
+      title: '처음 간 여행',
+      date: DateTime(2025, 10, 3),
+      yearly: false,
+      color: AnniversaryColor.pink,
+    ),
   ],
 );
 
+/// [screen]을 바로 그리거나, [tab]이 있으면 하단 탭까지 포함한 라우터로 그린다.
 Future<void> _shoot(
   WidgetTester tester,
-  Widget screen,
   String name, {
+  Widget? screen,
+  String? tab,
   Couple? couple,
   List<Event> events = const [],
 }) async {
@@ -98,6 +128,9 @@ Future<void> _shoot(
   addTearDown(tester.view.resetDevicePixelRatio);
 
   final day = DateTime(2026, 11, 5);
+  final dayEvents = events.where((e) => e.date.day == day.day).toList();
+  final theme = AppTheme.light();
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -112,21 +145,35 @@ Future<void> _shoot(
         ),
         selectedDateProvider.overrideWith((ref) => day),
         focusedDateProvider.overrideWith((ref) => day),
-        selectedDayEventsProvider.overrideWith((ref) => Stream.value(events)),
+        weekSelectedDateProvider.overrideWith((ref) => day),
+        selectedDayEventsProvider.overrideWith(
+          (ref) => Stream.value(dayEvents),
+        ),
         monthEventsProvider.overrideWith((ref) => Stream.value(events)),
+        weekEventsProvider.overrideWith((ref) => Stream.value(events)),
+        pushEnabledProvider.overrideWith(_PushOn.new),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        home: screen,
-      ),
+      child: tab != null
+          ? MaterialApp.router(
+              debugShowCheckedModeBanner: false,
+              theme: theme,
+              routerConfig: GoRouter(
+                initialLocation: tab,
+                routes: [appShellRoute()],
+              ),
+            )
+          : MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: theme,
+              home: screen,
+            ),
     ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 100));
 
   await expectLater(
-    find.byType(MaterialApp),
+    find.byWidgetPredicate((w) => w is MaterialApp),
     matchesGoldenFile('goldens/$name.png'),
   );
 
@@ -172,51 +219,98 @@ void main() {
     });
   });
 
+  final connected = _couple(CoupleStatus.connected);
+  final weekEvents = [
+    _event(
+      1,
+      '저녁 데이트',
+      coupleId: 'c1',
+      start: DateTime(2026, 11, 5, 19),
+      end: DateTime(2026, 11, 5, 21),
+    ),
+    _event(
+      2,
+      '치과 예약',
+      start: DateTime(2026, 11, 5, 10, 30),
+      end: DateTime(2026, 11, 5, 11, 30),
+    ),
+    _event(3, '영화 보기', coupleId: 'c1', day: 7),
+  ];
+
   testWidgets('로그인', (tester) async {
-    await _shoot(tester, const LoginPage(), 'login');
+    await _shoot(tester, 'login', screen: const LoginPage());
   });
 
-  testWidgets('홈 - 연결됨, 일정 있음', (tester) async {
+  testWidgets('오늘 일정 - 연결됨, 일정 있음', (tester) async {
     await _shoot(
       tester,
-      const CalendarHome(),
-      'home_events',
-      couple: _couple(CoupleStatus.connected),
-      events: [
-        _event(1, '저녁 데이트', coupleId: 'c1', start: DateTime(2026, 11, 5, 19)),
-        _event(2, '치과 예약', start: DateTime(2026, 11, 5, 10, 30)),
-      ],
+      'today_events',
+      tab: AppTabs.today,
+      couple: connected,
+      events: weekEvents,
     );
   });
 
-  testWidgets('홈 - 미연결, 일정 없음', (tester) async {
-    await _shoot(tester, const CalendarHome(), 'home_empty');
+  testWidgets('오늘 일정 - 미연결, 일정 없음', (tester) async {
+    await _shoot(tester, 'today_empty', tab: AppTabs.today);
   });
 
-  testWidgets('커플 연결 - 코드 대기', (tester) async {
+  testWidgets('달력', (tester) async {
     await _shoot(
       tester,
-      const CoupleConnectPage(),
-      'connect_pending',
-      couple: _couple(CoupleStatus.pending),
+      'calendar',
+      tab: AppTabs.calendar,
+      couple: connected,
+      events: weekEvents,
     );
   });
 
   testWidgets('기념일', (tester) async {
     await _shoot(
       tester,
-      const AnniversaryPage(),
       'anniversaries',
-      couple: _couple(CoupleStatus.connected),
+      tab: AppTabs.anniversaries,
+      couple: connected,
+    );
+  });
+
+  testWidgets('설정', (tester) async {
+    await _shoot(tester, 'settings', tab: AppTabs.settings, couple: connected);
+  });
+
+  testWidgets('일정 추가', (tester) async {
+    await _shoot(
+      tester,
+      'event_form',
+      screen: EventFormPage(initialDate: DateTime(2026, 11, 5)),
+      couple: connected,
+    );
+  });
+
+  testWidgets('기념일 추가', (tester) async {
+    await _shoot(
+      tester,
+      'anniversary_form',
+      screen: const AnniversaryFormPage(),
+      couple: connected,
+    );
+  });
+
+  testWidgets('커플 연결 - 코드 대기', (tester) async {
+    await _shoot(
+      tester,
+      'connect_pending',
+      screen: const CoupleConnectPage(),
+      couple: _couple(CoupleStatus.pending),
     );
   });
 
   testWidgets('커플 연결 - 완료', (tester) async {
     await _shoot(
       tester,
-      const CoupleConnectPage(),
       'connect_done',
-      couple: _couple(CoupleStatus.connected),
+      screen: const CoupleConnectPage(),
+      couple: connected,
     );
   });
 }

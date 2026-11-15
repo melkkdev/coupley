@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../../core/common/spacing.dart';
+import '../../../app/router.dart';
 import '../../../core/design/cozy/cozy_widgets.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../calendar/widgets/day_anniversaries.dart';
 import '../models/anniversary.dart';
 import '../models/couple.dart';
 import '../providers/couple_provider.dart';
-import 'dday_card.dart';
 
-/// 기념일 화면: 사귄 날 설정 + 다가오는 기념일 목록 + 직접 추가한 기념일 관리
+/// 기념일 탭: 사귄 날 설정 + 다가오는 기념일(자동 + 직접 등록) + 지난 기념일
 class AnniversaryPage extends ConsumerWidget {
   const AnniversaryPage({super.key});
 
@@ -20,17 +20,20 @@ class AnniversaryPage extends ConsumerWidget {
     final isConnected = couple != null && couple.isConnected;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('기념일')),
       floatingActionButton: isConnected
           ? FloatingActionButton(
-              onPressed: () => _openEditor(context, ref, couple),
-              child: const Icon(Icons.add),
+              tooltip: '기념일 추가',
+              onPressed: () => context.push(AppRoutes.anniversaryNew),
+              child: const Icon(Icons.add_rounded),
             )
           : null,
       body: CozyBackground(
-        child: isConnected
-            ? _AnniversaryBody(couple: couple)
-            : _NotConnected(onConnect: () => context.push('/couple-connect')),
+        child: SafeArea(
+          bottom: false,
+          child: isConnected
+              ? _AnniversaryBody(couple: couple)
+              : const _NotConnected(),
+        ),
       ),
     );
   }
@@ -48,20 +51,38 @@ class _AnniversaryBody extends ConsumerWidget {
       custom: couple.anniversaries,
       today: now,
     );
+    final past = pastOneTimeAnniversaries(
+      custom: couple.anniversaries,
+      today: now,
+    );
 
     return ListView(
       // 맨 아래 항목이 + 버튼에 가리지 않도록 여유를 둔다
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
       children: [
-        _StartDateCard(couple: couple),
-        AppSpacing.gapLg,
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text('다가오는 기념일', style: AppTheme.display(22)),
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 2),
+          child: Text('기념일', style: AppTheme.display(28)),
+        ),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(4, 0, 4, 12),
+          child: Text(
+            '날짜만 넣으면 남은 날은 Coupley가 알아서 세어 줘요.',
+            style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
+          ),
+        ),
+        _StartDateCard(couple: couple),
+        const SizedBox(height: 20),
+        SectionTitle(
+          '다가오는 기념일',
+          trailing: Text(
+            '${upcoming.length}개',
+            style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+          ),
         ),
         if (upcoming.isEmpty)
           CozyCard(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: const Center(
               child: Text(
                 '사귄 날을 정하거나 + 버튼으로\n기념일을 추가해 보세요',
@@ -71,30 +92,16 @@ class _AnniversaryBody extends ConsumerWidget {
             ),
           )
         else
-          CozyCard(
-            child: Column(
-              children: [
-                for (var i = 0; i < upcoming.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, indent: 64),
-                  _AnniversaryTile(
-                    item: upcoming[i],
-                    daysLeft: daysUntil(now, upcoming[i].date),
-                    onTap: upcoming[i].source == null
-                        ? null
-                        : () => _openEditor(
-                            context,
-                            ref,
-                            couple,
-                            editing: upcoming[i].source,
-                          ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        AppSpacing.gapSm,
+          for (final item in upcoming)
+            AnniversaryTile(item: item, daysLeft: daysUntil(now, item.date)),
+        if (past.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const SectionTitle('지난 기념일'),
+          for (final item in past)
+            AnniversaryTile(item: item, daysLeft: daysUntil(now, item.date)),
+        ],
         const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 4),
+          padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
           child: Text(
             '100일 단위 기념일과 주년은 사귄 날 기준으로 자동 계산돼요. '
             '직접 추가한 기념일은 눌러서 고치거나 지울 수 있어요.',
@@ -106,7 +113,7 @@ class _AnniversaryBody extends ConsumerWidget {
   }
 }
 
-/// 사귄 날과 함께한 날수
+/// 사귄 날과 함께한 날수. 누르면 사귄 날을 고른다.
 class _StartDateCard extends ConsumerWidget {
   final Couple couple;
   const _StartDateCard({required this.couple});
@@ -117,45 +124,50 @@ class _StartDateCard extends ConsumerWidget {
     final since = couple.togetherSince;
 
     return CozyCard(
-      padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+      color: AppColors.pinkBg,
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () => _pickStartDate(context, ref),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '우리가 사귄 날',
-                    style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    start != null
-                        ? DateFormat('yyyy년 M월 d일', 'ko_KR').format(start)
-                        : '아직 정하지 않았어요',
-                    style: AppTheme.display(start != null ? 26 : 22),
-                  ),
-                  if (since != null) ...[
-                    const SizedBox(height: 4),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '우리가 사귄 날',
+                      style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       start != null
-                          ? '오늘이 ${daysTogether(since, DateTime.now())}일째'
-                          : '지금은 커플 연결한 날부터 세고 있어요',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.coral,
-                      ),
+                          ? DateFormat('yyyy년 M월 d일', 'ko_KR').format(start)
+                          : '아직 정하지 않았어요',
+                      style: AppTheme.display(start != null ? 26 : 22),
                     ),
+                    if (since != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        start != null
+                            ? '오늘이 ${daysTogether(since, DateTime.now())}일째'
+                            : '지금은 커플 연결한 날부터 세고 있어요',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.coralDeep,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(Icons.edit_calendar_outlined, color: AppColors.inkSoft),
-            const SizedBox(width: 8),
-          ],
+              const Icon(
+                Icons.edit_calendar_outlined,
+                color: AppColors.inkSoft,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -173,60 +185,95 @@ class _StartDateCard extends ConsumerWidget {
     if (picked == null) return;
 
     try {
-      await ref
-          .read(coupleServiceProvider)
-          .updateStartDate(couple.id, picked);
+      await ref.read(coupleServiceProvider).updateStartDate(couple.id, picked);
     } catch (e) {
-      if (context.mounted) _showError(context, e);
+      if (context.mounted) showSaveError(context, e);
     }
   }
 }
 
-class _AnniversaryTile extends StatelessWidget {
+/// 기념일 한 줄: D-N 동그라미, 이름, 날짜·반복, 남은 날, (직접 등록이면) 삭제
+class AnniversaryTile extends ConsumerWidget {
   final AnniversaryOccurrence item;
   final int daysLeft;
-  final VoidCallback? onTap;
 
-  const _AnniversaryTile({
+  const AnniversaryTile({
+    super.key,
     required this.item,
     required this.daysLeft,
-    this.onTap,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isToday = daysLeft == 0;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final source = item.source;
+    final repeat = item.isAuto
+        ? '자동'
+        : source!.yearly
+        ? '매년 반복'
+        : '한 번만';
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      leading: AnniversaryBadge(icon: item.icon),
-      title: Text(
-        item.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: AppColors.ink,
-        ),
-      ),
-      subtitle: Text(
-        DateFormat('yyyy.M.d (E)', 'ko_KR').format(item.date) +
-            (item.isAuto ? ' · 자동' : ''),
-        style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
-      ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isToday ? AppColors.coral : AppColors.roseBg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          dDayLabel(daysLeft),
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: isToday ? Colors.white : AppColors.coral,
+    return CozyCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: source == null
+            ? null
+            : () => context.push(AppRoutes.anniversaryEdit, extra: source),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+          child: Row(
+            children: [
+              DdayBadge(daysLeft: daysLeft, color: item.color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    Text(
+                      '${DateFormat('yy.M.d', 'ko_KR').format(item.date)}'
+                      ' · $repeat',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkSoft,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                daysLeftLabel(daysLeft),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: daysLeft == 0
+                      ? AppColors.coralDeep
+                      : AppColors.inkSoft,
+                  fontWeight: daysLeft == 0 ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              if (source != null)
+                IconButton(
+                  tooltip: '${source.title} 삭제',
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 20,
+                    color: AppColors.inkSoft,
+                  ),
+                  onPressed: () =>
+                      confirmDeleteAnniversary(context, ref, source),
+                )
+              else
+                const SizedBox(width: 12),
+            ],
           ),
         ),
       ),
@@ -234,47 +281,52 @@ class _AnniversaryTile extends StatelessWidget {
   }
 }
 
-/// 기념일 종류 아이콘을 담은 동그란 배지
-class AnniversaryBadge extends StatelessWidget {
-  final AnniversaryIcon icon;
+/// D-18, D+813 같은 글자를 담은 동그라미
+class DdayBadge extends StatelessWidget {
+  final int daysLeft;
+  final AnniversaryColor color;
   final double size;
-  final Color background;
 
-  const AnniversaryBadge({
+  const DdayBadge({
     super.key,
-    required this.icon,
-    this.size = 40,
-    this.background = AppColors.roseBg,
+    required this.daysLeft,
+    required this.color,
+    this.size = 48,
   });
 
   @override
   Widget build(BuildContext context) {
-    final inner = size * 0.5;
+    final label = dDayLabel(daysLeft);
+    final isToday = daysLeft == 0;
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: isToday ? anniversaryColor(color) : anniversaryBgColor(color),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: anniversaryColor(color).withValues(alpha: 0.3),
+        ),
+      ),
       alignment: Alignment.center,
-      child: switch (icon) {
-        AnniversaryIcon.heart => DoodleHeart(size: inner),
-        AnniversaryIcon.cake => Icon(
-          Icons.cake_outlined,
-          size: inner,
-          color: AppColors.coral,
+      child: FittedBox(
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: Text(
+            label,
+            style: AppTheme.display(
+              16,
+              color: isToday ? Colors.white : anniversaryColor(color),
+            ),
+          ),
         ),
-        AnniversaryIcon.star => Icon(
-          Icons.star_rounded,
-          size: inner,
-          color: const Color(0xFFE8B84A),
-        ),
-      },
+      ),
     );
   }
 }
 
 class _NotConnected extends StatelessWidget {
-  final VoidCallback onConnect;
-  const _NotConnected({required this.onConnect});
+  const _NotConnected();
 
   @override
   Widget build(BuildContext context) {
@@ -284,12 +336,18 @@ class _NotConnected extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CoupleDoodle(width: 160, together: false),
-            AppSpacing.gapMd,
-            Text('짝꿍과 연결하면\n기념일을 함께 챙길 수 있어요',
-                textAlign: TextAlign.center, style: AppTheme.display(22)),
-            AppSpacing.gapLg,
-            ElevatedButton(onPressed: onConnect, child: const Text('커플 연결하기')),
+            const CharacterSlot(height: 120, width: 180),
+            const SizedBox(height: 16),
+            Text(
+              '짝꿍과 연결하면\n기념일을 함께 챙길 수 있어요',
+              textAlign: TextAlign.center,
+              style: AppTheme.display(22),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => context.push(AppRoutes.coupleConnect),
+              child: const Text('커플 연결하기'),
+            ),
           ],
         ),
       ),
@@ -297,19 +355,46 @@ class _NotConnected extends StatelessWidget {
   }
 }
 
-Future<void> _openEditor(
+/// 기념일 삭제 확인 후 삭제. 지웠으면 true.
+Future<bool> confirmDeleteAnniversary(
   BuildContext context,
   WidgetRef ref,
-  Couple couple, {
-  Anniversary? editing,
-}) {
-  return showDialog(
+  Anniversary anniversary,
+) async {
+  final couple = ref.read(coupleProvider).valueOrNull;
+  if (couple == null) return false;
+
+  final ok = await showDialog<bool>(
     context: context,
-    builder: (_) => _AnniversaryEditor(couple: couple, editing: editing),
+    builder: (ctx) => AlertDialog(
+      title: const Text('기념일 삭제'),
+      content: Text('"${anniversary.title}"을(를) 지울까요?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('취소'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('삭제', style: TextStyle(color: AppColors.coralDeep)),
+        ),
+      ],
+    ),
   );
+  if (ok != true) return false;
+
+  try {
+    await ref
+        .read(coupleServiceProvider)
+        .deleteAnniversary(couple.id, anniversary.id);
+    return true;
+  } catch (e) {
+    if (context.mounted) showSaveError(context, e);
+    return false;
+  }
 }
 
-void _showError(BuildContext context, Object e) {
+void showSaveError(BuildContext context, Object e) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
@@ -318,199 +403,4 @@ void _showError(BuildContext context, Object e) {
       ),
     ),
   );
-}
-
-/// 기념일 추가/수정 다이얼로그
-class _AnniversaryEditor extends ConsumerStatefulWidget {
-  final Couple couple;
-  final Anniversary? editing;
-
-  const _AnniversaryEditor({required this.couple, this.editing});
-
-  @override
-  ConsumerState<_AnniversaryEditor> createState() => _AnniversaryEditorState();
-}
-
-class _AnniversaryEditorState extends ConsumerState<_AnniversaryEditor> {
-  late final TextEditingController _title;
-  late DateTime _date;
-  late bool _yearly;
-  late AnniversaryIcon _icon;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.editing;
-    _title = TextEditingController(text: e?.title ?? '');
-    _date = e?.date ?? DateTime.now();
-    _yearly = e?.yearly ?? true;
-    _icon = e?.icon ?? AnniversaryIcon.heart;
-  }
-
-  @override
-  void dispose() {
-    _title.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEdit = widget.editing != null;
-
-    return AlertDialog(
-      title: Text(isEdit ? '기념일 수정' : '기념일 추가'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _title,
-              maxLength: 20,
-              autofocus: !isEdit,
-              decoration: const InputDecoration(
-                hintText: '예: 준호 생일, 첫 여행',
-                counterText: '',
-              ),
-            ),
-            AppSpacing.gapMd,
-            Row(
-              children: [
-                for (final icon in AnniversaryIcon.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _icon = icon),
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _icon == icon
-                                ? AppColors.coral
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: AnniversaryBadge(icon: icon, size: 40),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            AppSpacing.gapMd,
-            OutlinedButton.icon(
-              onPressed: _pickDate,
-              icon: const Icon(Icons.event_outlined, size: 20),
-              label: Text(
-                DateFormat('yyyy년 M월 d일 (E)', 'ko_KR').format(_date),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.line, width: 1.5),
-                minimumSize: const Size.fromHeight(48),
-              ),
-            ),
-            AppSpacing.gapSm,
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('매년 반복'),
-              value: _yearly,
-              onChanged: (v) => setState(() => _yearly = v),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        if (isEdit)
-          TextButton(
-            onPressed: _saving ? null : _confirmDelete,
-            style: TextButton.styleFrom(foregroundColor: AppColors.coral),
-            child: const Text('삭제'),
-          ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('취소'),
-        ),
-        ElevatedButton(
-          onPressed: _saving ? null : _save,
-          child: Text(isEdit ? '저장' : '추가'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(1950),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) setState(() => _date = picked);
-  }
-
-  Future<void> _save() async {
-    final title = _title.text.trim();
-    if (title.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('기념일 이름을 입력해 주세요')));
-      return;
-    }
-
-    final service = ref.read(coupleServiceProvider);
-    final anniversary = Anniversary(
-      id: widget.editing?.id ?? service.newAnniversaryId(),
-      title: title,
-      date: _date,
-      yearly: _yearly,
-      icon: _icon,
-    );
-
-    setState(() => _saving = true);
-    try {
-      await service.saveAnniversary(widget.couple.id, anniversary);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        _showError(context, e);
-      }
-    }
-  }
-
-  Future<void> _confirmDelete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('기념일 삭제'),
-        content: Text('"${widget.editing!.title}"을(를) 지울까요?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
-    setState(() => _saving = true);
-    try {
-      await ref
-          .read(coupleServiceProvider)
-          .deleteAnniversary(widget.couple.id, widget.editing!.id);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        _showError(context, e);
-      }
-    }
-  }
 }

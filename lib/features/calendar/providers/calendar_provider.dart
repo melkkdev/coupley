@@ -101,6 +101,65 @@ final monthEventsProvider = StreamProvider.autoDispose<List<Event>>((ref) {
   }
 });
 
+/// 오늘 일정 탭에서 고른 날짜 (주간 달력)
+final weekSelectedDateProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day);
+});
+
+/// [day]가 들어 있는 주의 일요일
+DateTime weekStartOf(DateTime day) {
+  final d = DateTime(day.year, day.month, day.day);
+  return d.subtract(Duration(days: d.weekday % 7));
+}
+
+/// 오늘 일정 탭에서 보고 있는 주(일~토)의 모든 일정
+final weekEventsProvider = StreamProvider.autoDispose<List<Event>>((ref) {
+  final database = ref.watch(databaseProvider);
+  final userId = ref.watch(authProvider.select((s) => s.userId));
+  final weekStart = ref.watch(weekSelectedDateProvider.select(weekStartOf));
+  final couple = ref.watch(coupleProvider).valueOrNull;
+
+  if (userId == null) return Stream.value([]);
+
+  final weekEnd = DateTime(
+    weekStart.year,
+    weekStart.month,
+    weekStart.day + 6,
+    23,
+    59,
+    59,
+  );
+
+  if (couple != null && couple.isConnected) {
+    return database.watchEventsByDateRangeCombined(
+      userId,
+      couple.id,
+      weekStart,
+      weekEnd,
+    );
+  }
+  return database.watchEventsByDateRange(userId, weekStart, weekEnd);
+});
+
+/// 일정 정렬: 날짜 → 종일 일정 먼저 → 시작 시각
+int compareEvents(Event a, Event b) {
+  final byDate = DateTime(
+    a.date.year,
+    a.date.month,
+    a.date.day,
+  ).compareTo(DateTime(b.date.year, b.date.month, b.date.day));
+  if (byDate != 0) return byDate;
+  if (a.isAllDay != b.isAllDay) return a.isAllDay ? -1 : 1;
+  final at = a.startTime ?? a.date;
+  final bt = b.startTime ?? b.date;
+  return at.compareTo(bt);
+}
+
+/// 개인 일정 / 커플 일정 저장 색 (#AARRGGBB)
+Color eventColor({required bool isCouple}) =>
+    isCouple ? const Color(0xFFF1735C) : const Color(0xFF51B48D);
+
 /// 특정 날짜의 이벤트 개수 계산 헬퍼
 Map<DateTime, List<Event>> getEventsMap(List<Event> events) {
   final Map<DateTime, List<Event>> eventsMap = {};

@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../app/router.dart';
 import '../../../core/design/cozy/cozy_widgets.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/anniversary.dart';
 import '../providers/couple_provider.dart';
 
-/// 함께한 날수. 연결한 날을 1일째로 센다. 시각은 무시하고 날짜만 비교한다.
-int daysTogether(DateTime connectedAt, DateTime now) {
-  final start = DateTime.utc(
-    connectedAt.year,
-    connectedAt.month,
-    connectedAt.day,
-  );
-  final today = DateTime.utc(now.year, now.month, now.day);
-  return today.difference(start).inDays + 1;
-}
-
-/// 홈 상단 카드. 연결되어 있으면 함께한 날수와 다음 기념일, 아니면 커플 연결 안내를 보여준다.
+/// 오늘 일정 탭 위쪽의 '함께한 날 D+N' 카드.
+/// 연결되어 있으면 함께한 날수와 다음 기념일, 아니면 커플 연결 안내를 보여준다.
+/// 누르면 기념일 탭(연결 전이면 커플 연결 화면)으로 간다.
 class DdayCard extends ConsumerWidget {
   const DdayCard({super.key});
 
@@ -36,56 +28,60 @@ class DdayCard extends ConsumerWidget {
           ).firstOrNull
         : null;
 
-    return CozyCard(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
+    final String caption;
+    if (!isTogether) {
+      caption = '짝꿍과 연결하면 함께한 날을 세어 줘요 ›';
+    } else if (couple.startDate == null) {
+      caption = '사귄 날을 알려 주세요 ›';
+    } else if (next != null) {
+      caption = '${next.title} · ${dDayLabel(daysUntil(now, next.date))}';
+    } else {
+      caption = '기념일 보기 ›';
+    }
+
+    return Material(
+      color: AppColors.pinkBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: AppColors.pink.withValues(alpha: 0.25)),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: () => context.push(
-          isTogether ? '/anniversaries' : '/couple-connect',
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        borderRadius: BorderRadius.circular(28),
+        onTap: () => isTogether
+            ? context.go(AppTabs.anniversaries)
+            : context.push(AppRoutes.coupleConnect),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Column(
+            children: [
+              Text(
+                isTogether ? '함께한 날' : '아직 혼자예요',
+                style: const TextStyle(fontSize: 13, color: AppColors.ink),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const DoodleHeart(size: 14, color: AppColors.pink),
+                  const SizedBox(width: 8),
                   Text(
-                    isTogether ? '우리가 함께한 지' : '아직 혼자예요',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.inkSoft,
+                    isTogether ? 'D+${daysTogether(since, now)}' : '짝꿍 초대하기',
+                    style: AppTheme.display(
+                      isTogether ? 34 : 26,
+                      color: AppColors.coralDeep,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isTogether
-                        ? 'D+${daysTogether(since, now)}'
-                        : '짝꿍 초대하기',
-                    style: AppTheme.display(isTogether ? 38 : 28),
-                  ),
-                  if (isTogether) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      couple.startDate == null
-                          ? '사귄 날을 알려 주세요 ›'
-                          : next != null
-                          ? '${next.title} · ${dDayLabel(daysUntil(now, next.date))}'
-                          : '기념일 보기 ›',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.coral,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+                  const SizedBox(width: 8),
+                  const DoodleHeart(size: 14, color: AppColors.pink),
                 ],
               ),
-            ),
-            CoupleDoodle(width: 128, together: isTogether),
-          ],
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+              ),
+            ],
+          ),
         ),
       ),
     );

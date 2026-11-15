@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 백그라운드 메시지 핸들러 — 반드시 최상위 함수
 @pragma('vm:entry-point')
@@ -15,6 +16,29 @@ class NotificationService {
 
   static const _channelId = 'coupley_events';
   static const _channelName = '일정 알림';
+
+  /// 설정 탭의 '커플 일정 알림' 스위치 값 (기본 켜짐)
+  static const enabledKey = 'push_enabled';
+
+  static Future<bool> isEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(enabledKey) ?? true;
+  }
+
+  /// 알림 켜기/끄기. 끄면 서버의 토큰을 지워 푸시가 오지 않게 하고,
+  /// 켜면 토큰을 다시 저장한다.
+  static Future<void> setEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(enabledKey, enabled);
+    if (enabled) {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
+      final token = await messaging.getToken();
+      if (token != null) await _saveToken(token);
+    } else {
+      await clearToken();
+    }
+  }
 
   static Future<void> initialize() async {
     final messaging = FirebaseMessaging.instance;
@@ -52,6 +76,7 @@ class NotificationService {
   }
 
   static Future<void> _saveToken(String token) async {
+    if (!await isEnabled()) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
