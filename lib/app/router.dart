@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../core/database/drift_database.dart';
 import '../core/theme/app_theme.dart';
-import '../features/auth/widgets/email_login_page.dart';
+import '../features/auth/widgets/phone_login_page.dart';
 import '../features/auth/widgets/login_page.dart';
 import '../features/calendar/widgets/calendar_page.dart';
 import '../features/calendar/widgets/event_form_page.dart';
@@ -32,7 +32,7 @@ class AppTabs {
 class AppRoutes {
   AppRoutes._();
 
-  static const emailLogin = '/login/email';
+  static const phoneLogin = '/login/phone';
   static const coupleConnect = '/couple-connect';
 
   /// extra: 처음 고를 날짜(DateTime)
@@ -110,8 +110,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const LoginPage(),
         routes: [
           GoRoute(
-            path: 'email',
-            builder: (context, state) => const EmailLoginPage(),
+            path: 'phone',
+            builder: (context, state) => const PhoneLoginPage(),
           ),
         ],
       ),

@@ -55,7 +55,11 @@ class _NotConnectedView extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           AppSpacing.gapMd,
-          const CharacterSlot(height: 130, width: 190),
+          const CharacterSlot(
+            height: 130,
+            width: 190,
+            asset: 'assets/images/character_connect.png',
+          ),
           AppSpacing.gapLg,
           Text('짝꿍과 연결해 보세요', style: AppTheme.display(30)),
           AppSpacing.gapSm,
@@ -288,7 +292,11 @@ class _ConnectedView extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CharacterSlot(height: 130, width: 200),
+              const CharacterSlot(
+                height: 130,
+                width: 200,
+                asset: 'assets/images/character_connected.png',
+              ),
               AppSpacing.gapLg,
               Text('이제 우리 둘의 달력이에요', style: AppTheme.display(30)),
               AppSpacing.gapSm,

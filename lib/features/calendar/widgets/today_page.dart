@@ -23,6 +23,13 @@ class TodayPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(weekSelectedDateProvider);
     final weekEvents = ref.watch(weekEventsProvider);
+    // 선택한 날 일정이 없으면 빈 카드에 '일정 추가' 버튼이 있으니 FAB는 숨긴다
+    final hasDayEvents = (weekEvents.valueOrNull ?? const <Event>[]).any(
+      (e) =>
+          e.date.year == selected.year &&
+          e.date.month == selected.month &&
+          e.date.day == selected.day,
+    );
 
     return Scaffold(
       body: CozyBackground(
@@ -32,7 +39,10 @@ class TodayPage extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
             children: [
               const _Header(),
-              const CharacterSlot(height: 120),
+              const CharacterSlot(
+                height: 120,
+                asset: 'assets/images/banner_today.png',
+              ),
               const SizedBox(height: 12),
               const DdayCard(),
               const SizedBox(height: 12),
@@ -53,11 +63,14 @@ class TodayPage extends ConsumerWidget {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: '일정 추가',
-        onPressed: () => context.push(AppRoutes.eventNew, extra: selected),
-        child: const Icon(Icons.add_rounded),
-      ),
+      floatingActionButton: hasDayEvents
+          ? FloatingActionButton(
+              tooltip: '일정 추가',
+              onPressed: () =>
+                  context.push(AppRoutes.eventNew, extra: selected),
+              child: const Icon(Icons.add_rounded),
+            )
+          : null,
     );
   }
 
@@ -306,7 +319,11 @@ class _EmptyDay extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
       child: Column(
         children: [
-          const CharacterSlot(height: 90, width: 140),
+          const CharacterSlot(
+            height: 90,
+            width: 140,
+            asset: 'assets/images/character_sleeping.png',
+          ),
           const SizedBox(height: 10),
           Text('아직 등록된 일정이 없어요', style: AppTheme.display(20)),
           const SizedBox(height: 10),

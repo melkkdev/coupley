@@ -85,7 +85,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   child: Column(
                     children: [
-                      const CharacterSlot(height: 190, width: 240),
+                      const CharacterSlot(
+                        height: 190,
+                        width: 240,
+                        asset: 'assets/images/character_login.png',
+                      ),
                       AppSpacing.gapLg,
                       Text(
                         'Coupley',
@@ -101,11 +105,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                       AppSpacing.gapXl,
                       _LoginButton(
-                        icon: Icons.mail_outline_rounded,
-                        label: '이메일로 시작하기',
+                        icon: Icons.phone_iphone_rounded,
+                        label: '휴대폰 번호로 시작하기',
                         onPressed: _isLoading
                             ? null
-                            : () => context.push(AppRoutes.emailLogin),
+                            : () => context.push(AppRoutes.phoneLogin),
                       ),
                       AppSpacing.gapSm,
                       // 카카오 로그인 버튼은 카카오 디자인 가이드에 맞춰 노란색을 쓴다

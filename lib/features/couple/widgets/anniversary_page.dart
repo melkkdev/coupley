@@ -336,7 +336,11 @@ class _NotConnected extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CharacterSlot(height: 120, width: 180),
+            const CharacterSlot(
+              height: 120,
+              width: 180,
+              asset: 'assets/images/character_anniversary_empty.png',
+            ),
             const SizedBox(height: 16),
             Text(
               '짝꿍과 연결하면\n기념일을 함께 챙길 수 있어요',

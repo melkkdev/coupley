@@ -1,13 +1,34 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao;
+import 'dart:async';
 import 'dart:io';
 
 import '../../../core/common/nickname_generator.dart';
 import '../../../core/services/notification_service.dart';
 import '../models/auth_status.dart';
+
+/// 인증번호 발송 결과
+class PhoneCodeResult {
+  const PhoneCodeResult.codeSent(this.verificationId, this.resendToken)
+      : autoVerified = false;
+  const PhoneCodeResult.autoVerified()
+      : verificationId = null,
+        resendToken = null,
+        autoVerified = true;
+
+  /// 인증번호 입력 시 필요한 ID (자동 인증이면 null)
+  final String? verificationId;
+
+  /// 재전송 시 넘길 토큰
+  final int? resendToken;
+
+  /// 안드로이드 SMS 자동 인식으로 이미 로그인됨
+  final bool autoVerified;
+}
 
 /// Auth 상태를 관리하는 Notifier
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -50,55 +71,102 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// 이메일/비밀번호 회원가입
-  Future<void> signUpWithEmail(String email, String password) async {
+  /// 휴대폰 번호로 인증번호(SMS) 발송
+  ///
+  /// [phoneNumber]는 E.164 형식(+821012345678).
+  /// 안드로이드에서 SMS를 자동으로 읽어 바로 로그인되면 [PhoneCodeResult.autoVerified],
+  /// 아니면 인증번호 입력에 필요한 verificationId를 담아 돌려준다.
+  Future<PhoneCodeResult> sendSmsCode(
+    String phoneNumber, {
+    int? resendToken,
+  }) {
+    final completer = Completer<PhoneCodeResult>();
+
+    _auth.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      forceResendingToken: resendToken,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (credential) async {
+        // 안드로이드 SMS 자동 인식 → 바로 로그인
+        try {
+          await _signInWithPhoneCredential(credential);
+          if (!completer.isCompleted) {
+            completer.complete(const PhoneCodeResult.autoVerified());
+          }
+        } on FirebaseAuthException catch (e) {
+          if (!completer.isCompleted) {
+            completer.completeError(_phoneErrorMessage(e));
+          }
+        }
+      },
+      verificationFailed: (e) {
+        if (!completer.isCompleted) {
+          completer.completeError(_phoneErrorMessage(e));
+        }
+      },
+      codeSent: (verificationId, newResendToken) {
+        if (!completer.isCompleted) {
+          completer.complete(
+            PhoneCodeResult.codeSent(verificationId, newResendToken),
+          );
+        }
+      },
+      codeAutoRetrievalTimeout: (_) {},
+    );
+
+    return completer.future;
+  }
+
+  /// 사용자가 입력한 6자리 인증번호로 로그인
+  Future<void> confirmSmsCode(String verificationId, String smsCode) async {
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
       );
-
-      // 랜덤 닉네임 자동 생성 후 설정
-      final nickname = NicknameGenerator.generate();
-      await credential.user?.updateDisplayName(nickname);
-      await credential.user?.reload();
+      await _signInWithPhoneCredential(credential);
     } on FirebaseAuthException catch (e) {
-      throw _handleAuthError(e);
-    } catch (e) {
-      print('SignUp Error: $e');
-      rethrow;
+      throw _phoneErrorMessage(e);
     }
   }
 
-  /// 이메일/비밀번호 로그인
-  Future<void> signInWithEmail(String email, String password) async {
-    try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthError(e);
-    } catch (e) {
-      print('SignIn Error: $e');
-      rethrow;
-    }
+  /// 전화번호 credential로 로그인하고, 처음 가입이면 랜덤 닉네임 부여
+  Future<void> _signInWithPhoneCredential(PhoneAuthCredential credential) async {
+    final result = await _auth.signInWithCredential(credential);
+    await _ensureNickname(result.user);
   }
 
-  /// Firebase Auth 에러 메시지 한글화
-  String _handleAuthError(FirebaseAuthException e) {
+  /// 처음 가입한 사용자면 랜덤 닉네임을 부여하고 상태에 반영한다.
+  ///
+  /// authStateChanges는 닉네임 설정 전에 먼저 발생하므로, 여기서 상태를 다시
+  /// 만들어 줘야 화면에 '사용자' 대신 새 닉네임이 바로 보인다.
+  Future<void> _ensureNickname(User? user) async {
+    if (user == null || (user.displayName ?? '').isNotEmpty) return;
+    await user.updateDisplayName(NicknameGenerator.generate());
+    await user.reload();
+    final refreshed = _auth.currentUser;
+    if (refreshed != null) state = AuthState.authenticated(user: refreshed);
+  }
+
+  /// 전화 인증 에러 메시지 한글화
+  String _phoneErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
-      case 'weak-password':
-        return '비밀번호는 6자 이상이어야 합니다';
-      case 'email-already-in-use':
-        return '이미 사용 중인 이메일입니다';
-      case 'invalid-email':
-        return '올바른 이메일 형식이 아닙니다';
-      case 'user-not-found':
-        return '존재하지 않는 계정입니다';
-      case 'wrong-password':
-        return '비밀번호가 틀렸습니다';
-      case 'invalid-credential':
-        return '이메일 또는 비밀번호가 올바르지 않습니다';
+      case 'invalid-phone-number':
+        return '올바른 휴대폰 번호가 아니에요';
+      case 'invalid-verification-code':
+        return '인증번호가 맞지 않아요';
+      case 'session-expired':
+        return '인증 시간이 지났어요. 인증번호를 다시 받아 주세요';
+      case 'too-many-requests':
+        return '요청이 너무 많아요. 잠시 후 다시 시도해 주세요';
+      case 'quota-exceeded':
+        return '오늘 보낼 수 있는 인증 문자를 모두 썼어요';
+      case 'operation-not-allowed':
+        return '지금은 휴대폰 인증을 쓸 수 없어요. 잠시 후 다시 시도해 주세요';
+      case 'network-request-failed':
+        return '네트워크 연결을 확인해 주세요';
       default:
-        return '로그인 실패: ${e.message}';
+        return '인증 실패: ${e.message}';
     }
   }
 
@@ -148,47 +216,31 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 카카오 로그인
   ///
-  /// 카카오톡 앱 설치 시 앱으로, 미설치 시 카카오 계정 웹으로 로그인.
-  /// Firebase Custom Auth 서버 없이 동작하도록 카카오 ID 기반 합성 이메일을
-  /// Firebase 이메일/패스워드 계정과 연결하는 방식(MVP).
+  /// 카카오톡 앱 설치 시 앱으로, 미설치 시 카카오 계정 웹으로 로그인한 뒤
+  /// 카카오 액세스 토큰을 Cloud Functions(`kakaoLogin`)로 보내 서버에서 검증하고,
+  /// 발급받은 Firebase Custom Token으로 로그인한다.
   Future<void> signInWithKakao() async {
     try {
       // 카카오톡 설치 여부에 따라 분기
+      final kakao.OAuthToken kakaoToken;
       if (await kakao.isKakaoTalkInstalled()) {
-        await kakao.UserApi.instance.loginWithKakaoTalk();
+        kakaoToken = await kakao.UserApi.instance.loginWithKakaoTalk();
       } else {
-        await kakao.UserApi.instance.loginWithKakaoAccount();
+        kakaoToken = await kakao.UserApi.instance.loginWithKakaoAccount();
       }
 
-      // 카카오 사용자 정보 조회
-      final user = await kakao.UserApi.instance.me();
-      final kakaoId = user.id.toString();
-      final nickname =
-          user.kakaoAccount?.profile?.nickname ?? NicknameGenerator.generate();
+      // 서버에서 카카오 토큰 검증 후 Firebase Custom Token 발급
+      final result = await FirebaseFunctions.instanceFor(
+        region: 'asia-northeast3',
+      ).httpsCallable('kakaoLogin').call<Map<String, dynamic>>({
+        'accessToken': kakaoToken.accessToken,
+      });
+      final customToken = result.data['token'] as String;
 
-      // 카카오 ID 기반 합성 Firebase 계정 정보
-      final syntheticEmail = 'kakao_$kakaoId@coupley.kakao';
-      final syntheticPassword = 'kakao_auth_$kakaoId';
+      final credential = await _auth.signInWithCustomToken(customToken);
 
-      try {
-        // 기존 계정 로그인 시도
-        await _auth.signInWithEmailAndPassword(
-          email: syntheticEmail,
-          password: syntheticPassword,
-        );
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
-          // 최초 로그인 → Firebase 계정 생성 후 닉네임 설정
-          final credential = await _auth.createUserWithEmailAndPassword(
-            email: syntheticEmail,
-            password: syntheticPassword,
-          );
-          await credential.user?.updateDisplayName(nickname);
-          await credential.user?.reload();
-        } else {
-          rethrow;
-        }
-      }
+      // 카카오 닉네임 동의를 안 했으면 랜덤 닉네임 부여
+      await _ensureNickname(credential.user);
     } catch (e) {
       print('Kakao Sign In Error: $e');
       rethrow;

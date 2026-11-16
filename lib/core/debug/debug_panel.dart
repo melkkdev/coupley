@@ -19,42 +19,48 @@ class DebugFloatingButton extends ConsumerWidget {
 
     final currentMode = ref.watch(debugModeProvider);
 
+    // Production에서는 화면을 가리지 않도록 왼쪽 가장자리에 작은 반투명 아이콘만 둔다.
+    // 다른 모드일 때만 눈에 띄는 라벨을 보여 줘서 실수로 켜 둔 걸 알아챌 수 있게 한다.
+    final isProduction = currentMode == DebugMode.production;
+
     return Positioned(
-      left: AppSpacing.md,
-      bottom: AppSpacing.md,
+      left: 0,
+      top: MediaQuery.of(context).size.height * 0.4,
       child: GestureDetector(
         onTap: () => _showDebugSheet(context, ref),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.black87,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-            border: Border.all(color: Colors.yellow, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+        child: Opacity(
+          opacity: isProduction ? 0.35 : 1,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: isProduction ? 6 : AppSpacing.sm,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black87,
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(AppSpacing.radiusXl),
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.bug_report, color: Colors.yellow, size: 18),
-              const SizedBox(width: 6),
-              Text(
-                currentMode.label,
-                style: const TextStyle(
-                  color: Colors.yellow,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+              border: isProduction
+                  ? null
+                  : Border.all(color: Colors.yellow, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.bug_report, color: Colors.yellow, size: 16),
+                if (!isProduction) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    currentMode.label,
+                    style: const TextStyle(
+                      color: Colors.yellow,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
