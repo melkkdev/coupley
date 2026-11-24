@@ -143,3 +143,55 @@ exports.kakaoLogin = onCall({ region: REGION }, async (request) => {
   const token = await auth.createCustomToken(uid, { provider: 'kakao' });
   return { token };
 });
+
+// ─────────────────────────────────────────────
+// 회원 탈퇴 → 내 데이터 전부 삭제 후 Auth 계정 삭제
+// ─────────────────────────────────────────────
+// 클라이언트에서 user.delete()를 하면 '최근 로그인' 조건에 걸리기 쉬워서
+// 서버(Admin SDK)에서 데이터와 계정을 한 번에 지운다.
+// couples 문서를 일정보다 먼저 지워서 onEventDeleted 트리거가 파트너에게
+// 삭제 알림을 줄줄이 보내지 않게 한다(파트너 토큰 조회가 null이 됨).
+async function deleteDocs(docs) {
+  const db = getFirestore();
+  for (let i = 0; i < docs.length; i += 400) {
+    const batch = db.batch();
+    docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+
+exports.deleteAccount = onCall({ region: REGION }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
+  }
+  const db = getFirestore();
+
+  // 1) 내가 속한 커플(연결·대기 모두) 정리
+  const couples = await db.collection('couples').where('members', 'array-contains', uid).get();
+  for (const coupleDoc of couples.docs) {
+    const partnerIds = (coupleDoc.data().members || []).filter((id) => id !== uid);
+    await coupleDoc.ref.delete();
+    for (const partnerId of partnerIds) {
+      await db.collection('users').doc(partnerId)
+        .update({ coupleId: null })
+        .catch(() => {}); // 파트너 문서가 없으면 무시
+    }
+    const coupleEvents = await db.collection('events').where('coupleId', '==', coupleDoc.id).get();
+    await deleteDocs(coupleEvents.docs);
+  }
+
+  // 2) 내가 만든 일정(개인 일정 포함) 삭제
+  const myEvents = await db.collection('events').where('userId', '==', uid).get();
+  await deleteDocs(myEvents.docs);
+
+  // 3) 프로필 문서 삭제
+  await db.collection('users').doc(uid).delete();
+
+  // 4) Auth 계정 삭제
+  await getAuth().deleteUser(uid).catch((e) => {
+    if (e.code !== 'auth/user-not-found') throw e;
+  });
+
+  return { ok: true };
+});

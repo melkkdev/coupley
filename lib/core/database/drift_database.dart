@@ -204,6 +204,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// 커플 정보 삭제
+  /// 기기에 저장된 일정·커플 정보 전부 삭제 (회원 탈퇴 시)
+  Future<void> clearAllData() {
+    return transaction(() async {
+      await delete(events).go();
+      await delete(coupleInfo).go();
+    });
+  }
+
   Future<int> deleteCoupleInfo(String userId) {
     return (delete(coupleInfo)..where((tbl) => tbl.userId.equals(userId))).go();
   }

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../app/router.dart';
+import '../../../core/config/app_config.dart';
+import '../../../core/database/database_provider.dart';
+import '../../../core/services/sync_storage.dart';
 import '../../../core/design/cozy/cozy_widgets.dart';
 import '../../../core/services/user_provider.dart';
 import '../../../core/theme/app_theme.dart';
@@ -58,6 +62,20 @@ class SettingsPage extends ConsumerWidget {
                     title: '로그아웃',
                     onTap: () => _confirmSignOut(context, ref),
                   ),
+                  _Tile(
+                    icon: Icons.privacy_tip_outlined,
+                    title: '개인정보처리방침',
+                    onTap: () => launchUrl(
+                      Uri.parse(AppConfig.privacyPolicyUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                  _Tile(
+                    icon: Icons.person_remove_outlined,
+                    iconColor: AppColors.inkSoft,
+                    title: '회원 탈퇴',
+                    onTap: () => _confirmDeleteAccount(context, ref),
+                  ),
                 ],
               ),
             ],
@@ -89,6 +107,68 @@ class SettingsPage extends ConsumerWidget {
       ),
     );
     if (ok == true) await ref.read(authProvider.notifier).signOut();
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('회원 탈퇴'),
+        content: const Text(
+          '탈퇴하면 내 일정, 커플 연결, 함께 쓴 커플 일정과 기념일이 모두 삭제되고 '
+          '되돌릴 수 없어요.\n정말 탈퇴할까요?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              '탈퇴하기',
+              style: TextStyle(color: AppColors.coralDeep),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    // 탈퇴 후 로그인 화면으로 이동하면서 이 위젯이 사라지므로 미리 꺼내 둔다
+    final messenger = ScaffoldMessenger.of(context);
+    final db = ref.read(databaseProvider);
+    final auth = ref.read(authProvider.notifier);
+    final userId = ref.read(authProvider).userId;
+
+    BuildContext? loadingContext;
+    void closeLoading() {
+      final c = loadingContext;
+      if (c != null && c.mounted) Navigator.of(c).pop();
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) {
+        loadingContext = c;
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+    try {
+      await auth.deleteAccount();
+      await db.clearAllData();
+      if (userId != null) await SyncStorage.clearLastSyncedAt(userId);
+      closeLoading();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('탈퇴가 완료됐어요. 그동안 고마웠어요')),
+      );
+    } catch (e) {
+      closeLoading();
+      messenger.showSnackBar(
+        SnackBar(content: Text('탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요 ($e)')),
+      );
+    }
   }
 
   void _editName(BuildContext context, WidgetRef ref, String currentName) {

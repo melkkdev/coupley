@@ -3,7 +3,7 @@
     <!-- Android 13+ 알림 권한 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="coupley"
+        android:label="Coupley"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

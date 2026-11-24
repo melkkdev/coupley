@@ -68,6 +68,19 @@
 				<string>kakao50231d29904d731caa88cc22da222055</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Google 로그인 (GoogleService-Info.plist REVERSED_CLIENT_ID) -->
+				<string>com.googleusercontent.apps.46399868006-1pie23gcs4sv0ujlkhm3fumpm55d7alt</string>
+				<!-- Firebase 휴대폰 인증 reCAPTCHA (Encoded App ID) -->
+				<string>app-1-46399868006-ios-400d6227ebe0d8ee9e71a7</string>
+			</array>
+		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

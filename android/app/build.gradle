@@ -22,6 +22,16 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// 출시 서명 키: android/key.properties (git 제외). 없으면 debug 키로 서명해서
+// 로컬 release 빌드는 계속 되지만, Play 업로드용 빌드는 반드시 key.properties가 있어야 한다.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
 android {
     namespace "com.melkk.coupley"
     compileSdk 36
@@ -44,15 +54,28 @@ android {
     defaultConfig {
         applicationId "com.melkk.coupley"
         minSdkVersion flutter.minSdkVersion
-        targetSdk 34
+        targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
     }
 
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig keystorePropertiesFile.exists()
+                    ? signingConfigs.release
+                    : signingConfigs.debug
         }
     }
 }

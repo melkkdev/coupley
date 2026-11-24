@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -258,6 +259,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // 카카오 로그인 상태가 아니어도 무시
     }
     await Future.wait([_auth.signOut(), _googleSignIn.signOut()]);
+  }
+
+  /// 회원 탈퇴
+  ///
+  /// 1. Apple로 가입한 계정이면 Apple 토큰 해지 (App Store 심사 요구사항,
+  ///    해지에 필요한 authorization code를 받으려고 Apple 로그인을 한 번 더 띄움)
+  /// 2. FCM 토큰 삭제
+  /// 3. Cloud Functions `deleteAccount`로 Firestore 데이터와 Auth 계정 삭제
+  /// 4. 카카오 연결 끊기, 기기 로그인 상태 정리
+  Future<void> deleteAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final isApple = user.providerData.any((p) => p.providerId == 'apple.com');
+    if (isApple && Platform.isIOS) {
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [],
+      );
+      await _auth.revokeTokenWithAuthorizationCode(
+        appleCredential.authorizationCode,
+      );
+    }
+
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {
+      // 토큰이 없거나 권한이 없어도 탈퇴는 계속 진행
+    }
+
+    await FirebaseFunctions.instanceFor(
+      region: 'asia-northeast3',
+    ).httpsCallable('deleteAccount').call<Map<String, dynamic>>();
+
+    try {
+      await kakao.UserApi.instance.unlink();
+    } catch (_) {
+      // 카카오 계정이 아니면 무시
+    }
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {
+      // Google 계정이 아니면 무시
+    }
+    await _auth.signOut();
   }
 
   /// 현재 사용자
