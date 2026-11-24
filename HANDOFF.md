@@ -1,180 +1,132 @@
 # HANDOFF.md — Coupley
 
 ## 프로젝트 경로
-`C:\Users\tkdals\dev\app\coupley_dev\coupley`
+`C:\Users\tkdals\dev\app\coupley` (GitHub `melkkdev/coupley`, 작업 브랜치 `design/readdy-redesign`)
 
 ## 현재 상태
-커플 캘린더 앱 — 인증(이메일/Google/카카오), 커플 연결, 캘린더(한글/공휴일/주말), 실시간 동기화, FCM 푸시 알림 모두 작동 중. Firebase Blaze 플랜 사용 중.
+Readdy 리디자인 + 스토어 출시 준비 코드 완료(2026-11-24, `3bf8e13` push). Functions·개인정보처리방침 배포 완료, Codemagic iOS 서명 설정(인증서·프로파일) 진행 중.
 
 ---
 
 ## 구현된 파일
 
-### 진입점
+### 앱 / 라우팅
 | 파일 | 역할 |
 |------|------|
-| `lib/main.dart` | Firebase 초기화, FCM 백그라운드 핸들러 등록, Firestore 오프라인 지속성, 한글 로케일, NotificationService 초기화 |
-| `lib/app/app.dart` | `MyApp` — `MaterialApp.router` 래퍼 |
-| `lib/app/router.dart` | GoRouter 설정; 인증 상태에 따른 리다이렉트(`/splash` → `/login` or `/calendar`), 스플래시 위젯 포함 |
+| `lib/main.dart` | Firebase 초기화, FCM 백그라운드 핸들러, Firestore 오프라인 지속성, 한글 로케일 |
+| `lib/app/app.dart` | `MaterialApp.router` 래퍼 |
+| `lib/app/router.dart` | GoRouter, 인증 상태 리다이렉트, `appShellRoute()` |
+| `lib/app/main_shell.dart` | 하단 탭 4개(오늘 일정·달력·기념일·설정) 셸 |
 
 ### 인증 (auth)
 | 파일 | 역할 |
 |------|------|
-| `lib/features/auth/models/auth_status.dart` | `AuthState` sealed/freezed 모델 (initializing / unauthenticated / authenticated) |
-| `lib/features/auth/models/user_profile.dart` | 유저 프로필 데이터 모델 (`fcmToken` 필드 포함) |
-| `lib/features/auth/providers/auth_provider.dart` | `AuthNotifier` — Google/Apple/카카오/이메일 로그인, 닉네임 변경, 로그아웃(FCM 토큰 제거 포함) |
-| `lib/features/auth/widgets/login_page.dart` | 이메일·카카오·Google·Apple(iOS 전용) 로그인 UI, 로딩 오버레이 |
+| `lib/features/auth/providers/auth_provider.dart` | `AuthNotifier` — 휴대폰(SMS)·카카오(Custom Token)·Google·Apple 로그인, 로그아웃, **`deleteAccount()` 회원 탈퇴** |
+| `lib/features/auth/widgets/login_page.dart` | 로그인 화면 (Apple 버튼은 iOS 전용) |
+| `lib/features/auth/widgets/phone_login_page.dart` | 휴대폰 번호 인증 화면 |
+| `lib/features/auth/models/*` | `AuthState`, `UserProfile` |
 
 ### 캘린더 (calendar)
 | 파일 | 역할 |
 |------|------|
-| `lib/features/calendar/providers/calendar_provider.dart` | `selectedDateProvider`, `monthEventsProvider`, `selectedDayEventsProvider`, `CalendarNotifier`(추가/수정/삭제) — 커플/솔로 자동 분기 |
-| `lib/features/calendar/widgets/calendar_home.dart` | 메인 홈 화면 — 실시간 동기화 리스너 활성화, 캘린더+이벤트 목록, 설정 다이얼로그 |
-| `lib/features/calendar/widgets/calendar_view.dart` | `TableCalendar` — 한글 로케일, 공휴일 표시, 개인(파란점)/커플(핑크점) 마커 분리, `daysOfWeekHeight: 32`, `rowHeight: 58` |
-| `lib/features/calendar/widgets/greeting_header.dart` | 상단 닉네임 + 편집 버튼 (닉네임 변경 시 이 위젯만 리빌드) |
-| `lib/features/calendar/widgets/add_event_dialog.dart` | 일정 추가/수정 다이얼로그 — 커플 일정 토글 포함 |
-| `lib/features/calendar/widgets/event_card.dart` | 선택된 날짜의 이벤트 카드 — 작성자 표시, 수정/삭제 메뉴 |
-| `lib/features/calendar/widgets/calendar_widgets.dart` | 공유 위젯 모음 |
+| `lib/features/calendar/widgets/today_page.dart` | 오늘 일정 탭 (D+N 카드 포함) |
+| `lib/features/calendar/widgets/calendar_page.dart` / `calendar_view.dart` | 달력 탭, TableCalendar(공휴일·개인 민트/커플 핑크/기념일 하트 마커) |
+| `lib/features/calendar/widgets/event_form_page.dart` | 일정 추가/수정 (fullscreenDialog 페이지) |
+| `lib/features/calendar/widgets/event_card.dart`, `day_anniversaries.dart` | 일정 카드, 날짜별 기념일 |
+| `lib/features/calendar/providers/calendar_provider.dart` | 일정 CRUD, 커플/솔로 분기 |
 
-### 커플 (couple)
+### 커플·기념일 (couple)
 | 파일 | 역할 |
 |------|------|
-| `lib/features/couple/models/couple.dart` | `Couple` 모델 (`isConnected`, `members`, `inviteCode` 등) |
-| `lib/features/couple/providers/couple_provider.dart` | `coupleNotifierProvider` — 초대 코드 생성/참여/해제 |
-| `lib/features/couple/widgets/couple_connect_page.dart` | 커플 연결 화면 — 연결 전(초대코드 만들기/입력) / 연결 후(파트너 정보) |
-| `lib/features/couple/invite_code_generator.dart` | 6자 알파벳+숫자 초대 코드 생성 유틸 |
+| `lib/features/couple/models/anniversary.dart` | 100일 단위·N주년 자동 계산 + 직접 등록 기념일 |
+| `lib/features/couple/widgets/anniversary_page.dart`, `anniversary_form_page.dart` | 기념일 탭, 기념일 추가 |
+| `lib/features/couple/widgets/couple_connect_page.dart`, `dday_card.dart` | 커플 연결, D+N 카드 |
+| `lib/features/couple/providers/couple_provider.dart`, `models/couple.dart` | 초대 코드 생성/참여/해제 |
+
+### 설정 (settings)
+| 파일 | 역할 |
+|------|------|
+| `lib/features/settings/widgets/settings_page.dart` | 커플 연결, 알림, **개인정보처리방침 링크, 회원 탈퇴** |
+| `lib/features/settings/providers/notification_settings_provider.dart` | 알림 설정 |
 
 ### 코어 (core)
 | 파일 | 역할 |
 |------|------|
-| `lib/core/database/drift_database.dart` | `AppDatabase` — Events/CoupleInfo 테이블, CRUD + 스트림 쿼리, 마이그레이션 (schemaVersion=4) |
-| `lib/core/database/drift_database.g.dart` | drift_dev 자동 생성 파일 (수동 편집 금지) |
-| `lib/core/database/database_provider.dart` | `databaseProvider` Riverpod 프로바이더 |
-| `lib/core/services/firebase_service.dart` | Firestore CRUD, 실시간 스트림 (`getCoupleEventsStream`, `getPersonalEventsStream`) |
-| `lib/core/services/sync_service.dart` | `SyncService` — 스마트 증분 동기화, Drift↔Firebase 머지 |
-| `lib/core/services/sync_provider.dart` | `syncServiceProvider`, `firebaseServiceProvider` |
-| `lib/core/services/sync_storage.dart` | SharedPreferences 기반 마지막 동기화 시각 저장 |
-| `lib/core/services/realtime_sync_provider.dart` | `realtimeCoupleSyncProvider` + `realtimePersonalSyncProvider` — Firebase 실시간 리스너 → Drift upsert/delete |
-| `lib/core/services/notification_service.dart` | FCM 초기화, 권한 요청, 토큰 Firestore 저장/제거, 포그라운드 알림 표시 |
-| `lib/core/services/user_service.dart` | Firestore `users` 컬렉션 관리 |
-| `lib/core/services/user_provider.dart` | `userServiceProvider` |
-| `lib/core/services/couple_service.dart` | 커플 관련 Firestore 작업 |
-| `lib/core/config/app_config.dart` | 앱 전역 상수 (카카오 네이티브 앱 키 등) |
-| `lib/core/common/nickname_generator.dart` | 회원가입 시 랜덤 닉네임 자동 생성 |
-| `lib/core/common/korea_holidays.dart` | 한국 공휴일 데이터 (2024~2027년 하드코딩) |
-| `lib/core/common/spacing.dart` | 앱 전체 간격/radius 상수 (`xs`~`xxl`, `smMd=12`) |
-| `lib/core/theme/app_theme.dart` | 앱 테마 설정 |
-| `lib/core/design/indicators/app_loading_indicator.dart` | 로딩 인디케이터 위젯 |
-| `lib/core/debug/debug_mode.dart` | `DebugMode` enum (normal / skipAuth) |
-| `lib/core/debug/debug_provider.dart` | `debugModeProvider` |
-| `lib/core/debug/debug_panel.dart` | 디버그 플로팅 패널 (kDebugMode에서만 표시) |
+| `lib/core/database/drift_database.dart` | Drift 로컬 미러 DB (탈퇴 시 전체 삭제 메서드 포함) |
+| `lib/core/services/*` | Firestore CRUD, 증분/실시간 동기화, FCM, 유저/커플 서비스 |
+| `lib/core/design/cozy/*` | 귀여운 톤 공용 위젯, `CharacterSlot` |
+| `lib/core/theme/app_theme.dart` | 팔레트(크림·코랄·민트), 폰트 |
+| `lib/core/config/app_config.dart` | 카카오 키, 개인정보처리방침 URL 등 상수 |
 
-### Cloud Functions
+### 서버 / 배포
 | 파일 | 역할 |
 |------|------|
-| `functions/index.js` | Firestore 트리거 — 커플 일정 추가/수정/삭제 시 파트너 FCM 발송 (asia-northeast3, Node.js 22) |
-| `functions/package.json` | Firebase Functions 의존성 (firebase-admin ^12, firebase-functions ^6) |
-| `firebase.json` | Functions 소스 경로 설정 |
-| `.firebaserc` | 기본 프로젝트 `coupley-219a1` 지정 |
+| `functions/index.js` | `onEventCreated/Updated/Deleted`(파트너 FCM), `kakaoLogin`(Custom Token), `deleteAccount`(회원 탈퇴) — asia-northeast3, Node 22 |
+| `hosting/privacy.html` | 개인정보처리방침 → https://coupley-219a1.web.app/privacy (시행일 2026-11-24) |
+| `firebase.json` | Functions + Hosting(`/privacy` rewrite) |
+| `codemagic.yaml` | `ios-release`(TestFlight), `android-release`(Play 내부 테스트, 초안) — 수동 트리거 |
+
+### 출시 설정
+| 파일 | 역할 |
+|------|------|
+| `android/app/build.gradle` | `key.properties` 있으면 업로드 키 서명, 없으면 debug. targetSdk 36 |
+| `android/key.properties` (git 제외) | 업로드 키스토어 `C:/Users/tkdals/keys/coupley-upload.jks`, alias `upload` |
+| `ios/Runner/Runner.entitlements` | 푸시(`aps-environment`), Sign in with Apple |
+| `ios/Runner/Info.plist` | 카카오·Google(REVERSED_CLIENT_ID)·휴대폰 인증(Encoded App ID) URL scheme, `ITSAppUsesNonExemptEncryption=false` |
+| `ios/Podfile` | iOS 13.0 |
+| `android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist` (git 제외) | 2026-11-24 `com.melkk.coupley`로 재등록한 Firebase 앱 설정 |
 
 ---
 
 ## 설치된 패키지 (pubspec.yaml)
-
-### 런타임 의존성
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| flutter_riverpod | ^2.6.1 | 상태 관리 |
-| go_router | ^14.6.2 | 라우팅 |
-| drift | ^2.20.3 | 로컬 SQLite DB |
-| sqlite3_flutter_libs | ^0.5.24 | SQLite 네이티브 바인딩 |
-| path_provider | ^2.1.5 | 앱 문서 디렉토리 경로 |
-| path | ^1.9.0 | 경로 조합 유틸 |
-| firebase_core | ^3.8.1 | Firebase 초기화 |
-| firebase_auth | ^5.3.4 | 인증 |
-| cloud_firestore | ^5.5.2 | 원격 DB |
-| firebase_messaging | ^15.1.5 | FCM 푸시 알림 |
-| flutter_local_notifications | ^18.0.1 | 포그라운드 알림 표시 |
-| google_sign_in | ^6.2.2 | Google 로그인 |
-| sign_in_with_apple | ^6.1.3 | Apple 로그인 (iOS) |
-| kakao_flutter_sdk_user | ^1.9.9 | 카카오 로그인 |
-| shared_preferences | ^2.3.3 | 동기화 타임스탬프 로컬 저장 |
-| intl | ^0.20.2 | 날짜 포맷, 한글 로케일 |
-| table_calendar | ^3.1.2 | 캘린더 UI |
-| share_plus | ^13.1.0 | 초대 코드 공유 |
-| flutter_localizations | SDK | 한글 지원 |
-
-### 개발 의존성
-| 패키지 | 버전 | 용도 |
-|--------|------|------|
-| drift_dev | ^2.20.3 | DB 코드 생성 |
-| build_runner | ^2.4.13 | 코드 제너레이터 실행 |
-| change_app_package_name | ^1.5.0 | 패키지명 변경 도구 |
+- 상태/라우팅: `flutter_riverpod ^2.6.1`, `go_router ^14.6.2`
+- 로컬 DB: `drift ^2.20.3`, `path_provider`, `path`, `shared_preferences`
+- Firebase: `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_messaging`, `cloud_functions ^5.6.2`
+- 로그인: `google_sign_in ^6.2.2`, `sign_in_with_apple ^6.1.3`, `kakao_flutter_sdk_user ^1.9.9`
+- UI/기타: `table_calendar`, `intl`, `flutter_local_notifications`, `share_plus`, `url_launcher ^6.3.3`
+- dev: `drift_dev`, `build_runner`, `flutter_lints`, `change_app_package_name`
+- Flutter 3.44.2 (Codemagic도 동일 버전 고정)
 
 ---
 
 ## 차단 이슈
+- **Codemagic iOS 빌드 실패**: `No matching profiles found for bundle identifier "com.melkk.coupley" and distribution type "app_store"`
+  → ① Apple Developer에 App ID 등록(Sign in with Apple·Push 켜기) ② Codemagic에서 Apple Distribution 인증서 Generate ③ Apple Developer에서 App Store 프로비저닝 프로파일 생성 ④ Codemagic에서 Fetch profiles
+- Codemagic은 `main`에서 `codemagic.yaml`을 찾음 → 지금은 브랜치 `design/readdy-redesign` 선택해서 빌드
+- iOS 빌드는 Windows에서 검증 불가 — Codemagic 첫 성공 빌드 전까지 iOS 설정 미검증
 
-현재 알려진 빌드/실행 차단 이슈 없음.
-
-**주의사항:**
-- Drift 스키마 변경 시 반드시 `flutter pub run build_runner build` 실행 필요
-- `drift_database.g.dart`는 자동 생성 파일 — 수동 편집 금지
-- 한국 공휴일 데이터는 2027년까지만 있음 (2028년 이후 연도 추가 필요)
-- Apple 로그인은 iOS에서만 작동 (`Platform.isIOS` 분기 처리됨)
-- `flutter_local_notifications` 사용으로 Android `build.gradle`에 `coreLibraryDesugaringEnabled true` 설정 필요 (이미 적용됨)
-- Cloud Functions 수정 후 반드시 `firebase deploy --only functions` 재배포 필요
+**주의사항**
+- Firebase 앱은 2026-11-24 `com.mellkk.coupley`(오타) → `com.melkk.coupley`로 Android·iOS 모두 재등록함. 설정 파일 교체 시 패키지명 확인
+- Functions 빌드는 compute 서비스 계정 사용 — `roles/cloudbuild.builds.builder` 2026-11-24 부여함
+- 배포 실패로 FAILED 상태가 된 함수는 업데이트가 계속 실패 → `firebase functions:delete <name>` 후 재배포
+- Drift 스키마 변경 시 `dart run build_runner build --delete-conflicting-outputs`
 
 ---
 
 ## 다음 구현할 기능
 
 ### 완료 ✅
-- [x] Firebase 인증 (이메일/Google/Apple)
-- [x] 카카오 로그인 연동
-- [x] 랜덤 닉네임 자동 생성 + 닉네임 변경
-- [x] Drift 로컬 DB (Events, CoupleInfo 테이블)
-- [x] Firebase Firestore 동기화 (실시간 리스너 기반)
-- [x] 스마트 증분 동기화 (첫 실행=전체, 이후=변경분만)
-- [x] 커플 연결 (초대 코드 6자 생성/참여/해제)
-- [x] 커플 일정 vs 개인 일정 분리 (마커 색상 구분: 파랑/핑크)
-- [x] 캘린더 한글화 (월 제목, 요일 표시)
-- [x] 주말/공휴일 빨간색 표시
-- [x] 한국 공휴일 데이터 (2024~2027)
-- [x] 이벤트 카드에 작성자 표시
-- [x] 설정 다이얼로그 (커플 연결, 로그아웃)
-- [x] Firestore 오프라인 지속성 활성화
-- [x] 인증 초기화 UX 개선 (스플래시 → 리다이렉트)
-- [x] 디버그 모드 (Auth Skip)
-- [x] FCM 푸시 알림 — 파트너 일정 추가/수정/삭제 시 알림 (Cloud Functions + firebase_messaging)
-- [x] 패키지명 변경 — `com.mellkk.coupley` → `com.melkk.coupley`
+- [x] Readdy 시안 리디자인 (하단 탭 4개, 기념일, 캐릭터 이미지)
+- [x] 휴대폰 SMS 로그인, 카카오 Custom Token 로그인
+- [x] 업로드 키스토어 생성 + release 서명 (AAB 서명 확인)
+- [x] targetSdk 36, Android 앱 이름 `Coupley`
+- [x] iOS entitlements, 최소 13.0, Podfile, URL scheme
+- [x] 회원 탈퇴 (`deleteAccount` 함수 + 앱 흐름, Apple 토큰 해지 포함)
+- [x] 개인정보처리방침 페이지 배포
+- [x] Firebase SHA 등록 (업로드 키 SHA-1/256 + debug SHA-1), 카카오 키 해시·iOS 번들 ID 등록
+- [x] `codemagic.yaml` 작성
 
-### 미완료 / 다음 세션 작업 후보
-
-#### 공통 기능
-- [ ] 기념일 D-day 표시 (커플 기준일 설정)
-- [ ] 일정 반복 기능 (매주/매월/매년)
-- [ ] 이벤트 색상 커스터마이즈 UI 개선
-- [ ] 커플 프로필 사진 업로드 (Firebase Storage)
-- [ ] 2028년 이후 공휴일 데이터 추가
-- [ ] 단위 테스트 / 위젯 테스트
-
-#### Android (AOS)
-- [ ] 앱 아이콘 설정 (`android/app/src/main/res/` 각 density별 이미지 교체)
-- [ ] 스플래시 이미지 설정 (`android/app/src/main/res/drawable/`)
-- [ ] 서명 키스토어 생성 및 `build.gradle` 서명 설정
-- [ ] Google Play 스토어 릴리즈 빌드 (`flutter build appbundle`)
-- [x] 카카오 로그인 — Android 디버그 해시 키 등록 완료 (`phiTM5xjx5Kr+6eHuxPzevhy1Bs=`, 패키지명: `com.melkk.coupley`)
-- [ ] 카카오 로그인 — 릴리즈 키스토어 생성 후 릴리즈 해시 키 콘솔 등록
-
-#### iOS
-- [ ] Apple 로그인 연동 — Xcode Signing & Capabilities에서 `Sign In with Apple` 활성화 (현재 코드는 준비됨, 인증서 설정 필요)
-- [ ] 앱 아이콘 설정 (`ios/Runner/Assets.xcassets/AppIcon.appiconset/`)
-- [ ] 스플래시 이미지 설정 (`ios/Runner/Assets.xcassets/LaunchImage.imageset/`)
-- [ ] Bundle ID 설정 (Xcode → Runner → Signing & Capabilities)
-- [ ] 프로비저닝 프로파일 / 인증서 설정 (Apple Developer 계정 필요)
-- [ ] App Store 릴리즈 빌드 (`flutter build ipa`)
-- [x] 카카오 로그인 — Info.plist URL Scheme 등록 완료
+### 미완료
+- [ ] Codemagic iOS 서명 설정 (위 차단 이슈 ①~④) 후 `ios-release` 첫 빌드
+- [ ] Codemagic 환경변수: `firebase` 그룹(base64 2개), `app_store`(APP_STORE_APPLE_ID), `google_play`(서비스 계정 JSON), Android keystore `coupley_upload`
+- [ ] Firebase Auth에서 Apple 제공업체 사용 설정 + OAuth 코드 흐름(Team ID·Key ID·.p8) — 탈퇴 시 토큰 해지에 필요
+- [ ] APNs 키(.p8)를 Firebase Cloud Messaging에 업로드
+- [ ] Play Console 앱 등록 → 첫 AAB 수동 업로드 → 비공개 테스트(12명·14일) → Play 앱 서명 키 SHA·키 해시를 Firebase·카카오에 추가 등록
+- [ ] 실제 기기에서 회원 탈퇴 테스트 (Firestore·Auth 삭제 확인)
+- [ ] TestFlight로 카카오·Apple·휴대폰 로그인, 푸시 확인
+- [ ] 스토어 정보: 스크린샷, 데이터 보안/App Privacy, 심사용 테스트 번호(010-1234-1234 / 123456)
+- [ ] 리디자인 QA 후 `main` 병합
+- [ ] Functions 빌드 이미지 정리 경고 확인 (Artifact Registry)
 
 ---
 
@@ -182,48 +134,25 @@
 
 ### 데이터 플로우
 ```
-사용자 액션
-  → Firebase에만 쓰기 (CalendarNotifier.addEvent/updateEvent/deleteEvent)
-  → Firestore 실시간 리스너 발화 (realtimeCoupleSyncProvider / realtimePersonalSyncProvider)
-  → Drift upsert/delete
-  → Drift Stream → UI 자동 갱신
-  → Cloud Functions 트리거 → 파트너 FCM 발송
+사용자 액션 → Firestore에만 쓰기 → 실시간 리스너 → Drift upsert/delete → Drift Stream → UI
+                                   └→ Cloud Functions 트리거 → 파트너 FCM
 ```
 
-### FCM 알림 플로우
-```
-커플 일정 추가/수정/삭제
-  → Firestore events 컬렉션 변경
-  → Cloud Functions (onEventCreated / onEventUpdated / onEventDeleted)
-  → couples/{coupleId}.members에서 파트너 userId 조회
-  → users/{partnerId}.fcmToken 조회
-  → FCM 발송 (닉네임 + 일정 제목 포함)
-```
+### 회원 탈퇴 순서 (`AuthNotifier.deleteAccount`)
+1. Apple 계정이면 Apple 재로그인 → `revokeTokenWithAuthorizationCode`
+2. FCM 토큰 삭제
+3. Cloud Function `deleteAccount` 호출 — 커플 문서를 일정보다 먼저 삭제(파트너 알림 폭주 방지), 파트너 `coupleId` 정리, 프로필·Auth 삭제
+4. 카카오 unlink, Google disconnect
+5. Drift 데이터 + 동기화 시각 삭제
 
-### 커플/솔로 분기 패턴
+### 서명 분기 (android/app/build.gradle)
+```groovy
+signingConfig keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+```
+Codemagic에서는 `CM_KEYSTORE_*` 환경변수로 `key.properties`를 생성.
+
+### 커플/솔로 분기
 ```dart
 final couple = coupleAsync.valueOrNull;
-if (couple != null && couple.isConnected) {
-  return database.watchEventsByDateRangeCombined(userId, couple.id, ...);
-} else {
-  return database.watchEventsByDateRange(userId, ...);
-}
+if (couple != null && couple.isConnected) { /* combined */ } else { /* personal */ }
 ```
-
-### 리빌드 최소화 패턴
-```dart
-// userId만 select → userName 변경 시 이 Provider 재평가 안 됨
-final userId = ref.watch(authProvider.select((s) => s.userId));
-```
-
-### 캘린더 마커 분리 (개인=파랑, 커플=핑크)
-```dart
-final hasCouple = events.any((e) => e.coupleId != null);
-final hasPersonal = events.any((e) => e.coupleId == null);
-```
-
-### Drift 스키마 변경 절차
-1. `drift_database.dart`에서 테이블/컬럼 수정
-2. `schemaVersion` 증가
-3. `migration.onUpgrade`에 마이그레이션 코드 추가
-4. `flutter pub run build_runner build --delete-conflicting-outputs`
